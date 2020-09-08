@@ -79,7 +79,7 @@ end
 
             @variable(model1, u[1:Nu, 1:NFE])
 
-                  #region -> Set Variable Bounds AND Initial Guesses 
+                  #region -> Set Variable Bounds AND Initial Guesses (scaled)
                   for nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP     
                         set_lower_bound(x[nx, nfe, ncp], 0)
                         # set_upper_bound(x[nx, nfe, ncp], 999)
@@ -99,7 +99,7 @@ end
                         # set_upper_bound(u[2, nfe], 0)                       
                   end
 
-                  #Set Initial Guesses
+                  #todo - Set Initial Guesses as scaled
                   for nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP
                         set_start_value(x[nx, nfe, ncp],    x0[nx])
                         set_start_value(z[nz, nfe, ncp],    z0[nz])
@@ -111,6 +111,7 @@ end
                   #endregion
                   end
 
+                  #todo Make expressions for scaling and naming variables (for ease of writing eqns)
                   #region-> Expressions for Unscaling Variables
                   # @NLexpressions(model1, begin
                   
