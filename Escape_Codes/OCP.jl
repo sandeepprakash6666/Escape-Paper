@@ -133,6 +133,9 @@ end
                         T_phb[nfe in 1:NFE, ncp in 1:NCP],  z[2, nfe, ncp]
                         T_whb[nfe in 1:NFE, ncp in 1:NCP],  z[3, nfe, ncp]
 
+                        α[nfe in 1:NFE],        u[1, nfe]
+                        Q_phb[nfe in 1:NFE],    u[2, nfe]
+
                   end)
                   #endregion
 
