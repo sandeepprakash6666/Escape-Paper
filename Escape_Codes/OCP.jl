@@ -3,6 +3,14 @@ using Plots
 using JuMP
 using Ipopt
 
+##
+include("parameters.jl")
+using Main.MyModule: x0,      z0,     u0, 
+                     Nx,      Nz,     Nu, 
+                     ls_x,    ls_z,   ls_u, 
+                     us_x,    us_z,   us_u    #scaled variables 
+
+
 function Collocation_Matrix()
       #Radau
       t1 = 0.155051
@@ -27,21 +35,21 @@ end
 # function Solve_OCP(x0, Tf, Is_ISS)
 
             #region -> Value of Arguments for Debugging
-            x0 = [60.0]
+            # x0 = [60.0]
             Tf = 30.0
             Is_SS = 0          #If want to find Steady State set = 1
 
             #endregion
 
                   #region -> Setting Initial guesses and Dimensions
-                  z0 = [60.0; 60.0; 60.0]
-                  u0 = [0.0; 0.0]
+                  # z0 = [60.0; 60.0; 60.0]
+                  # u0 = [0.0; 0.0]
 
-                  dx0 = 0  * x0
-                  alg0 = 0 * z0
-                  Nx = size(x0, 1)
-                  Nz = size(z0, 1)
-                  Nu = size(u0, 1)
+                  dx0_us = 0  * x0
+                  alg0_us = 0 * z0
+                  # Nx = size(x0, 1)
+                  # Nz = size(z0, 1)
+                  # Nu = size(u0, 1)
                   #endregion
 
       ##*Model Parameters 
@@ -72,10 +80,10 @@ end
             #region -> Variables and Objective
             ## Declare Variables
             @variable(model1, x[1:Nx, 1:NFE, 1:NCP])
-            @variable(model1, dx[1:Nx, 1:NFE, 1:NCP])
+            @variable(model1, dx_us[1:Nx, 1:NFE, 1:NCP])
 
             @variable(model1, z[1:Nz, 1:NFE, 1:NCP])
-            @variable(model1, alg[1:Nz, 1:NFE, 1:NCP])
+            # @variable(model1, alg_us[1:Nz, 1:NFE, 1:NCP])
 
             @variable(model1, u[1:Nu, 1:NFE])
 
@@ -99,13 +107,13 @@ end
                         # set_upper_bound(u[2, nfe], 0)                       
                   end
 
-                  #todo - Set Initial Guesses as scaled
+                  #todo - Set Initial Guesses (scaled)
                   for nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP
-                        set_start_value(x[nx, nfe, ncp],    x0[nx])
-                        set_start_value(z[nz, nfe, ncp],    z0[nz])
-                        set_start_value(dx[nx, nfe, ncp],   dx0[nx])
-                        set_start_value(alg[nz, nfe, ncp],  alg0[nz])
-                        set_start_value(u[nu, nfe],         u0[nu])
+                        set_start_value(x[nx, nfe, ncp],          x0[nx])
+                        set_start_value(z[nz, nfe, ncp],          z0[nz])
+                        set_start_value(dx_us[nx, nfe, ncp],      dx0_us[nx])
+                        # set_start_value(alg_us[nz, nfe, ncp],     alg0_us[nz])
+                        set_start_value(u[nu, nfe],               u0[nu])
 
 
                   #endregion
@@ -113,41 +121,49 @@ end
 
                   #todo Make expressions for scaling and naming variables (for ease of writing eqns)
                   #region-> Expressions for Unscaling Variables
-                  # @NLexpressions(model1, begin
+                  @NLexpressions(model1, begin
                   
-                        # Z1[nfe in 1:NFE, ncp in 1:NCP], 2.0*z[1, nfe, ncp]
+                        x_us[nx in 1:Nx, nfe in 1:NFE, ncp in 1:NCP],  x[nx, nfe, ncp]*  (us_x[nx] - ls_x[nx]) + ls_x[nx]
+                        z_us[nz in 1:Nz, nfe in 1:NFE, ncp in 1:NCP],  z[nz, nfe, ncp]*  (us_z[nz] - ls_z[nz]) + ls_z[nz]
+                        u_us[nu in 1:Nu, nfe in 1: NFE],               u[nu, nfe]     *  (us_u[nu] - ls_u[nu]) + ls_u[nu] 
 
-                  # end)
+                        T_tes[nfe in 1:NFE, ncp in 1:NCP], x_us[1, nfe, ncp]
+
+                        T_b[nfe in 1:NFE, ncp in 1:NCP],    z[1, nfe, ncp]
+                        T_phb[nfe in 1:NFE, ncp in 1:NCP],  z[2, nfe, ncp]
+                        T_whb[nfe in 1:NFE, ncp in 1:NCP],  z[3, nfe, ncp]
+
+                  end)
                   #endregion
 
 
             ## Objective
-            @NLobjective(model1, Min, sum( u[2,nfe] for nfe in 1:NFE ) )
+            @NLobjective(model1, Min, sum( u_us[2,nfe] for nfe in 1:NFE ) )
 
             #endregion
 
 ##* Defining Constraints
      #region -> Constraints
 
-      @NLconstraints(model1, begin
-            #Defining the model ODEs in each line
-            Constr_ODE1[nfe in 1:NFE, ncp in 1:NCP], dx[1, nfe, ncp]      == u[1, nfe]*q_dh*(z[3,nfe,ncp] - x[1,nfe,ncp] )/V_tes
-            #In case of more states - pattern
-            #Constr_ODE999[nfe=1:NFE, ncp=1:NCP], dx[999,nfe,ncp] ==
+       @NLconstraints(model1, begin
+      #Defining the model ODEs in each line
+      Constr_ODE1[nfe in 1:NFE, ncp in 1:NCP], dx_us[1, nfe, ncp]      == u_us[1, nfe]*q_dh*(z_us[3,nfe,ncp] - x_us[1,nfe,ncp] )/V_tes
+      #In case of more states - pattern
+      #Constr_ODE999[nfe=1:NFE, ncp=1:NCP], dx[999,nfe,ncp] ==
       end)
 
       @NLconstraints(model1, begin
-            #Defining Model Algebraic Equations in each line
-            Constr_Alg1[nfe in 1:NFE, ncp in 1:NCP], z[1, nfe, ncp] == u[1,nfe]*x[1,nfe,ncp]    + (1-u[1,nfe])*z[3,nfe,ncp]
-            Constr_Alg2[nfe in 1:NFE, ncp in 1:NCP], z[2, nfe, ncp] == z[1,nfe,ncp]             + u[2,nfe]/( q_dh*ρ_dh*Cp_dh )
-            Constr_Alg3[nfe in 1:NFE, ncp in 1:NCP], z[3, nfe, ncp] == T_dh_ret                 + Q_whb/   ( q_dh*ρ_dh*Cp_dh) 
-            #In case of more states - pattern
-            #Constr_Alg999[nfe=1:NFE, ncp=1:NCP], alg[999,nfe,ncp] ==
+      #Defining Model Algebraic Equations in each line
+      Constr_Alg1[nfe in 1:NFE, ncp in 1:NCP], z_us[1, nfe, ncp] == u_us[1,nfe]*x[1,nfe,ncp]    + (1-u_us[1,nfe])*z_us[3,nfe,ncp]
+      Constr_Alg2[nfe in 1:NFE, ncp in 1:NCP], z_us[2, nfe, ncp] == z_us[1,nfe,ncp]             + u_us[2,nfe]/( q_dh*ρ_dh*Cp_dh )
+      Constr_Alg3[nfe in 1:NFE, ncp in 1:NCP], z_us[3, nfe, ncp] == T_dh_ret                    + Q_whb/   ( q_dh*ρ_dh*Cp_dh) 
+      #In case of more states - pattern
+      #Constr_Alg999[nfe=1:NFE, ncp=1:NCP], alg[999,nfe,ncp] ==
       end)
 
       @NLconstraints(model1, begin
             #Defining any Inequality Constraints in each line
-            Constr_Ineq1[nfe in 1:NFE, ncp in 1:NCP], z[2, nfe, ncp] >= T_dh_minSup
+            Constr_Ineq1[nfe in 1:NFE, ncp in 1:NCP], z_us[2, nfe, ncp] >= T_dh_minSup
             #In case of more states - pattern
             #Constr_Ineq999[nfe=1:NFE, ncp=1:NCP], alg[999,nfe,ncp] ==
       end)
@@ -158,9 +174,9 @@ end
                   @NLconstraints(model1, begin
                         #Collocation Equation for Differential Equations
                         #t = 0
-                        Constr_Coll_Diff0[nx in 1:Nx,  nfe = 1, ncp in 1:NCP],        x[nx, nfe, ncp]    == x0[nx]               + dt * sum(collMat[ncp, i] * dx[nx, nfe, i] for i = 1:NCP)
+                        Constr_Coll_Diff0[nx in 1:Nx,  nfe = 1, ncp in 1:NCP],        x[nx, nfe, ncp]    == x0[nx]               + dt * sum(collMat[ncp, i] * dx_us[nx, nfe, i] for i = 1:NCP) /(us_x[nx] - ls_x[nx])
                         #t = 1 ... (N-1)
-                        Constr_Coll_Diff[nx in 1:Nx,   nfe in 2:NFE, ncp = 1:NCP],    x[nx, nfe, ncp]     == x[nx, nfe-1, NCP]   + dt * sum(collMat[ncp, i] * dx[nx, nfe, i] for i = 1:NCP)
+                        Constr_Coll_Diff[nx in 1:Nx,   nfe in 2:NFE, ncp = 1:NCP],    x[nx, nfe, ncp]    == x[nx, nfe-1, NCP]    + dt * sum(collMat[ncp, i] * dx_us[nx, nfe, i] for i = 1:NCP) /(us_x[nx] - ls_x[nx])
                   end)
                   
             #endregion std code     
@@ -178,14 +194,8 @@ end
       star_u = JuMP.value.(u[:, :])
       star_z = JuMP.value.(z[:, :, NCP])
 
-      # A = JuMP.value.(z[:, :, :])
-      # B = A[1,:,:]
-      # B[1,1] = 100 
-      # T1[:,1] .= 100
-      # T1
-      # star_test
-
-      star_dx = JuMP.value.(dx[:,:,NCP])
+      star_dx = JuMP.value.(dx_us[:,:,NCP])
+      star_x_us = JuMP.value.(x_us[:,:,NCP])
 
 ##* Plot Solution
       #region -> Plotting Solution
