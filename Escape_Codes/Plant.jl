@@ -6,10 +6,10 @@ using Plots
 
 
 #region -> Initial Points and Guesses
-x0 = [1.0; 0.0]
+x0 = [60.0]
 q0 = [0.0]
-z0 = [0.0]
-u0 = [0.1; 0.0]
+z0 = [60.0, 60.0, 60.0]
+u0 = [0.0; 0.0]
 tspan = (0.0, 10.0)
 #endregion
 
@@ -21,52 +21,53 @@ function Plant_Eqns(x,z,u)
     alg = 0.0*z
 
     #region-> Assigning names to variables for ease of writing Equations
-    # T_tes = x[1]
+    T_tes = x[1]
 
-    # T_b = z[1]
-    # T_phb = z[2]
-    # T_whb = z[3]
+    T_b = z[1]
+    T_phb = z[2]
+    T_whb = z[3]
 
-    # alpha = u[1]
-    # Q_phb = u[2]
+    alpha = u[1]
+    Q_phb = u[2]
     #endregion
 
       #region - Plant Parameters
-      # ρ_dh = 1000
-      # Cp_dh = 4.18
-      # q_dh = 1
+      ρ_dh = 1000
+      Cp_dh = 4.18
+      q_dh = 1
 
-      # ρ_wh = 1000
-      # Cp_wh = 4.18
-      # q_wh = 1
+      ρ_wh = 1000
+      Cp_wh = 4.18
+      q_wh = 1
 
-      # T_dh_ret = 30
+      T_dh_ret = 30
+      T_dh_minSup = 60
 
-      # Q_whb = 1000
-      # V_tes = 500
+      Q_whb = 1000
+      V_tes = 500
       #endregion
 
-    # ##ODEs -
-    # dx = ( alpha*q_dh*(T_whb - T_tes)/V_tes      )
+    ##ODEs -
+    dx[1] = ( alpha*q_dh*(T_whb - T_tes)/V_tes      )
 
-    # ##Objective function - term inside integration
-    # # dq = u[1]*x[1]
+    ##Objective function - term inside integration
+    dq = 0
 
-    # ##Alg Equations
-    # alg[1] = T_b    - ( alpha*T_tes + (1-alpha)*T_whb )
-    # alg[2] = T_phb  - ( T_b + Q_phb/( q_dh*ρ_dh*Cp_dh)   )
-    # alg[3] = T_whb  - ( T_dh_ret + Q_whb/ (q_dh*ρ_dh*Cp_dh))
+    ##Alg Equations
+    alg[1] = T_b    - ( alpha*T_tes + (1-alpha)*T_whb )
+    alg[2] = T_phb  - ( T_b + Q_phb/( q_dh*ρ_dh*Cp_dh)   )
+    alg[3] = T_whb  - ( T_dh_ret + Q_whb/ (q_dh*ρ_dh*Cp_dh))
 
       #region -> testing with Lorentz function as DAE
-        ##ODEs -
-        dx[1] = -0.04*x[1] + 10000*x[2]*z[1]
-        dx[2] = 0.04*x[1] - 10000*x[2]*z[1] - 30000000*x[2]^2
+        # ##ODEs -
+        # dx[1] = -0.04*x[1] + 10000*x[2]*z[1]
+        # dx[2] = 0.04*x[1] - 10000*x[2]*z[1] - 30000000*x[2]^2
 
-        ##Objective function - term inside integration
-        dq[1] = 0
+        # ##Objective function - term inside integration
+        # dq[1] = 0
     
-        ##Alg Equations
-        alg[1] = 1 - (x[1]*x[2] + z[1])
+        # ##Alg Equations
+        # alg[1] = 1 - (x[1]*x[2] + z[1])
       #endregion
 
     return dx, dq, alg
@@ -77,11 +78,11 @@ end
 
 
 ##* Function to solve a DAE using SunDials integrator
-function Integrate_Plant_DAE(x0, q0, z0, u0, tspan)
+# function Integrate_Plant_DAE(x0, q0, z0, u0, tspan)
 
     #region-> Setting Dimensions
     dx0 = 0*x0
-    dq0 = 0
+    dq0 = 0*q0
     dz0 = 0*z0  #dummy variable analogous to xdot
     alg0 = 0*z0
     Nx = size(x0,1)
@@ -120,7 +121,7 @@ function Integrate_Plant_DAE(x0, q0, z0, u0, tspan)
   ## Integrate the Plant for 1 time step (Solving DAE using Sundials)
   U₀ = vcat(x0,q0,z0)       #Initial Guess for all the variables (Differential, Objective, Algebraic) in DAE
   DU₀ = vcat(dx0,dq0,alg0)  #Initial Guess for their gradients (zero for the algebraic equations)
-  differential_vars = vcat( ones(Nx+1), zeros(Nz))  #Identifier for which variables are differential and which are algebraic
+  differential_vars = vcat( ones(Nx+Nq), zeros(Nz))  #Identifier for which variables are differential and which are algebraic
 
   prob = DAEProblem(fun_DAE, DU₀,  U₀, tspan,  u0, differential_vars=differential_vars)
 
@@ -130,13 +131,14 @@ function Integrate_Plant_DAE(x0, q0, z0, u0, tspan)
   qf = sol.u[end][Nx+1]
   zf = sol.u[end][Nx+2 : Nx+1+Nz]
 
-    # # Plot the Profile for all [x, q, z]
+    # Plot the Profile for all [x, q, z]
     # plotly()
-    # plot(sol)
+    gr()
+    plot(sol)
   
 
-  return xf, qf, zf
-end
+#   return xf, qf, zf
+# end
 
 #test DAE Integrator
 # Integrate_Plant_DAE(x0, q0, z0, u0, tspan)
