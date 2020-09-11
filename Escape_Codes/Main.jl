@@ -8,7 +8,7 @@ NCP = 3
 ##* Create Subproblem 1 
 #region
 x0_us = [60.0]
-Q_whb1 = vcat(1.2*ones(10,1), ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
+Q_whb1 = vcat(1.0*ones(10,1), 1.2*ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
 
 T01 = 0.0
 Tf1 = 30.0
@@ -21,6 +21,7 @@ JuMP.termination_status(P1)
 JuMP.solve_time(P1::Model)
 JuMP.objective_value(P1)
 
+    x1 = getindex(P1, :x)
 
     T_tes1   = getindex(P1, :T_tes)
     T_b1     = getindex(P1, :T_tes)
@@ -31,7 +32,7 @@ JuMP.objective_value(P1)
 
 
     star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
-                star_T_tes1 = cat(x0[1]*100, star_T_tes1, dims = 1)     #todo - scaling to be made automatic
+                star_T_tes1 = cat(x0_us[1], star_T_tes1, dims = 1)     
     star_T_b1    = JuMP.value.(T_b1[:, NCP])
     star_T_phb1  = JuMP.value.(T_phb1[:, NCP])
     star_T_whb1  = JuMP.value.(T_whb1[:, NCP])
@@ -66,7 +67,7 @@ t_plot1
 
 ##* Create Subproblem 2
 
-Q_whb2 = vcat(1.0*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6
+Q_whb2 = vcat(1.1*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something
 
 
 T02 = 30.0
@@ -80,6 +81,7 @@ JuMP.termination_status(P2)
 JuMP.solve_time(P2::Model)
 JuMP.objective_value(P2)
 
+    x2 = getindex(P2, :x)
 
     T_tes2   = getindex(P2, :T_tes)
     T_b2     = getindex(P2, :T_tes)
@@ -90,7 +92,7 @@ JuMP.objective_value(P2)
 
 
     star_T_tes2 = JuMP.value.(T_tes2[:,NCP])
-                star_T_tes2 = cat(x0[1]*100, star_T_tes2, dims = 1)     #todo - scaling to be made automatic
+                star_T_tes2 = cat(x0_us[1], star_T_tes2, dims = 1)     #todo - scaling to be made automatic
     star_T_b2    = JuMP.value.(T_b2[:, NCP])
     star_T_phb2  = JuMP.value.(T_phb2[:, NCP])
     star_T_whb2  = JuMP.value.(T_whb2[:, NCP])
