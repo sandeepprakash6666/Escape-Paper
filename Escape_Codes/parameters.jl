@@ -1,8 +1,9 @@
 
 module Bounds
 
+
     ##? Unscaled Initial POints/ Guesses
-    x0_us = [30.0]
+    x0_us = [60.0]
     z0_us = [60.0; 60.0; 60.0]
     u0_us = [0.0; 0.0]
 
@@ -37,24 +38,23 @@ end
 module Model_parameters
 
     ## District Heat Parameters 
-    ρ_dh = 1000
-    Cp_dh = 4.18
-    q_dh = 2
+    ρ_dh = 1000         
+    Cp_dh = 4.18        #kJ/(kg-K)
+    q_dh = 10            #m3/hr
 
-    ##Waste HEat Parameters
+    ##Waste Heat Parameters
     ρ_wh = 1000
     Cp_wh = 4.18
-    q_wh = 2
+    q_wh = 10
 
     T_dh_ret = 30
     T_dh_minSup = 60
 
     ##todo - make into arrays/ move out into varables
-    Q_whb = vcat(1.2*ones(10,1), ones(10,1), 0.8*ones(10,1)) *1.2539989996092727e6
     V_tes = 100
 
     export  ρ_dh, Cp_dh, q_dh, 
             ρ_wh, Cp_wh, q_wh, 
-            T_dh_ret, T_dh_minSup, Q_whb, V_tes
+            T_dh_ret, T_dh_minSup, V_tes
 
 end
