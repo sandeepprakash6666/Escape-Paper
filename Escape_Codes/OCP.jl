@@ -124,12 +124,12 @@ function Build_OCP(x0_us, Q_whb, Tf)
                         end)
                         #endregion
                         
-                        @variable(model1, z_ADMM)
-                        fix(z_ADMM, 60.0)
+                        # @variable(model1, z_ADMM)
+                        # fix(z_ADMM, 60.0)
 
 
-                  ## Objective
-                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) + (T_tes[NFE,NCP] - z_ADMM) )    #Duty in KJ
+                  # Objective
+                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) )    #Duty in KJ
 
             #endregion
 
