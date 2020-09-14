@@ -1,4 +1,6 @@
 
+# using PlotlyJS
+using Plots
 
 include("OCP.jl")
 
@@ -16,19 +18,23 @@ t_plot1 = collect(T01:dt:Tf1)
 
 P1 = Build_OCP(x0_us, Q_whb1, Tf1)
 
+x1 = getindex(P1, :x)
+
+T_tes1   = getindex(P1, :T_tes)
+T_b1     = getindex(P1, :T_tes)
+T_phb1   = getindex(P1, :T_phb)
+T_whb1   = getindex(P1, :T_whb)
+α1       = getindex(P1, :α)
+Q_phb1   = getindex(P1, :Q_phb)
+Constr_Coll_Diff0 = getindex(P1, :Constr_Coll_Diff0)
+z_ADMM1 = getindex(P1, :z_ADMM) 
+
+
 optimize!(P1)
 JuMP.termination_status(P1)
 JuMP.solve_time(P1::Model)
 JuMP.objective_value(P1)
 
-    x1 = getindex(P1, :x)
-
-    T_tes1   = getindex(P1, :T_tes)
-    T_b1     = getindex(P1, :T_tes)
-    T_phb1   = getindex(P1, :T_phb)
-    T_whb1   = getindex(P1, :T_whb)
-    α1       = getindex(P1, :α)
-    Q_phb1   = getindex(P1, :Q_phb)
 
 
     star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
@@ -40,12 +46,15 @@ JuMP.objective_value(P1)
     star_α1      = JuMP.value.(α1[:])
     star_Q_phb1  = JuMP.value.(Q_phb1[:])
 
+    star_z_ADMM1 = JuMP.value.(z_ADMM1)
+
+    has_duals(P1)
+    lambda = JuMP.dual.(Constr_Coll_Diff0)
 
 ##  Plotting        
-t_plot1      
     #choose backend for plots
-    # plotly()
-    gr()
+    plotly()
+    # gr()
 
         #Differential States
         p11 = plot(t_plot1, star_T_tes1,                label = "T_tes1")
@@ -63,7 +72,17 @@ t_plot1
                                                                     # marker = false)
 
     fig1 = plot(p11, p12, p13, p14, p15, layout = (5, 1))
+    # gui(fig1)
 #endregion
+
+
+##fixing
+JuMP.fix(z_ADMM1, 500.0; force = true)
+
+optimize!(P1)
+
+star_z_ADMM1 = JuMP.value.(z_ADMM1)
+
 
 ##* Create Subproblem 2
 
@@ -101,7 +120,7 @@ JuMP.objective_value(P2)
     star_Q_phb2  = JuMP.value.(Q_phb2[:])
 
 
-                        
+## Plotting                     
     #choose backend for plots
     # plotly()
     gr()

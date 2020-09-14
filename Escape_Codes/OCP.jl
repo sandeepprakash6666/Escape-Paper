@@ -1,5 +1,5 @@
 # using Revise
-using Plots
+# using Plots
 using JuMP
 using Ipopt
 
@@ -45,11 +45,12 @@ function Build_OCP(x0_us, Q_whb, Tf)
             # x0_us = [60.0]  #Unscaled state variable
             # # Q_whb = vcat(1.0*ones(10,1), ones(10,1), 1.0*ones(10,1)) *1.2539999996092727e6
             # Q_whb = vcat(1.2*ones(10,1), ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
+            # z_ADMM0 = 60.0
             # Tf = 30.0
       #endregion
 
                         #region-> Setting Initial guesses and Dimensions
-                        x0 = (x0_us - ls_x) ./ (us_x - ls_x)
+                        x0 = (x0_us - ls_x) ./ (us_x - ls_x)      #scaled initial state
                         dx0_us  = 0*x0
                         # alg0_us = 0 * z0
                         # Nx = size(x0, 1)
@@ -122,9 +123,13 @@ function Build_OCP(x0_us, Q_whb, Tf)
 
                         end)
                         #endregion
+                        
+                        @variable(model1, z_ADMM)
+                        fix(z_ADMM, 60.0)
+
 
                   ## Objective
-                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) )    #Duty in KJ
+                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) + (T_tes[NFE,NCP] - z_ADMM) )    #Duty in KJ
 
             #endregion
 
@@ -184,7 +189,7 @@ function Build_OCP(x0_us, Q_whb, Tf)
                   star_α      = JuMP.value.(α[:])
                   star_Q_phb  = JuMP.value.(Q_phb[:])
             end
-
+            
       ##* Plot Solution
             if Display_Plots == true
 
