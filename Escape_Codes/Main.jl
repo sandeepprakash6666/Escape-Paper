@@ -31,14 +31,14 @@ JuMP.objective_sense(P1)
 JuMP.objective_function(P1)
 
 
-JuMP.set_NL_objective(P1, :Min, :(  $(Q_phb1[1])   ) )  #todo - Add if statements inside model to manually make subproblems
+# JuMP.set_NL_objective(P1, :Min, :(  $(Q_phb1[1])   ) )  #todo - Add if statements inside model to manually make subproblems
 
 
 
 ##* Create Subproblem 2
 T02 = 30.0
 Tf2 = 60.0
-Q_whb2 = vcat(1.1*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something
+Q_whb2 = vcat(1.1*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something similar
 
 t_plot2 = collect(T02:dt:Tf2) 
 

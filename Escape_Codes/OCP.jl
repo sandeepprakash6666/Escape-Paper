@@ -71,6 +71,7 @@ function Build_OCP(x0_us, Q_whb, Tf)
 
             #region -> Variables and Objective
                   ## Declare Variables
+                  
                   @variable(model1, x[1:Nx, 1:NFE, 1:NCP])
                   @variable(model1, dx_us[1:Nx, 1:NFE, 1:NCP])
 
