@@ -7,7 +7,7 @@ using Ipopt
 ##* Reading Model Parameters from Module
 include("parameters.jl")
       using Main.Bounds     
-                                    z0 = Bounds.z0;         u0 = Bounds.u0
+            x_guess = Bounds.x0;    z_guess = Bounds.z0;    u_guess = Bounds.u0
             Nx = Bounds.Nx;         Nz = Bounds.Nz;         Nu = Bounds.Nu 
             ls_x = Bounds.ls_x;     ls_z = Bounds.ls_z;     ls_u = Bounds.ls_u 
             us_x = Bounds.us_x;     us_z = Bounds.us_z;     us_u = Bounds.us_u
@@ -39,19 +39,16 @@ function Collocation_Matrix()
 end
 
 ##* Function to solve OCP
-function Build_OCP(x0_us, Q_whb, Tf)
+function Build_OCP(Q_whb, Tf, (ns,np) )
 
       #region-> Value of Arguments for Debugging
-            # x0_us = [60.0]  #Unscaled state variable
-            # # Q_whb = vcat(1.0*ones(10,1), ones(10,1), 1.0*ones(10,1)) *1.2539999996092727e6
+            # Q_whb = vcat(1.0*ones(10,1), ones(10,1), 1.0*ones(10,1)) *1.2539999996092727e6
             # Q_whb = vcat(1.2*ones(10,1), ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
-            # z_ADMM0 = 60.0
             # Tf = 30.0
       #endregion
 
                         #region-> Setting Initial guesses and Dimensions
-                        x0 = (x0_us - ls_x) ./ (us_x - ls_x)      #scaled initial state
-                        dx0_us  = 0*x0
+                        # dx0_us  = 0*x_guess
                         # alg0_us = 0 * z0
                         # Nx = size(x0, 1)
                         # Nz = size(z0, 1)
@@ -62,8 +59,10 @@ function Build_OCP(x0_us, Q_whb, Tf)
             Solve_OCP         = false
             Display_Plots     = false
             T0 = 0.0
-            NFE = 30
-            dt = (Tf - T0) / NFE
+            dt = 1.0
+            NFE = convert(Int32, (Tf - T0)/dt)
+            # NFE = 30
+            # dt = (Tf - T0) / NFE
             NCP = 3
 
       ##* Defining Solver
@@ -71,7 +70,8 @@ function Build_OCP(x0_us, Q_whb, Tf)
 
             #region -> Variables and Objective
                   ## Declare Variables
-                  
+                  @variable(model1, x0[1:Nx])               #initial guess - scaled
+
                   @variable(model1, x[1:Nx, 1:NFE, 1:NCP])
                   @variable(model1, dx_us[1:Nx, 1:NFE, 1:NCP])
 
@@ -83,7 +83,7 @@ function Build_OCP(x0_us, Q_whb, Tf)
                         #region-> #? Set Variable Bounds AND Initial Guesses (scaled)
                         for nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP     
                               set_lower_bound(x[nx, nfe, ncp], 0)
-                              # set_upper_bound(x[nx, nfe, ncp], 999)
+                              set_upper_bound(x[nx, nfe, ncp], 1)
 
                               set_lower_bound(z[nz, nfe, ncp], 0)
                               #set_upper_bound(z[nz, nfe, ncp], 999)
@@ -100,12 +100,11 @@ function Build_OCP(x0_us, Q_whb, Tf)
 
                               #Initial Guesses (Scaled)
                         for nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP
-                              set_start_value(x[nx, nfe, ncp],          x0[nx])
-                              set_start_value(z[nz, nfe, ncp],          z0[nz])
-                              set_start_value(dx_us[nx, nfe, ncp],      dx0_us[nx])
-                              # set_start_value(alg_us[nz, nfe, ncp],     alg0_us[nz])
-                              set_start_value(u[nu, nfe],               u0[nu])
-
+                              set_start_value(x[nx, nfe, ncp],          x_guess[nx])
+                              set_start_value(z[nz, nfe, ncp],          z_guess[nz])
+                              set_start_value(dx_us[nx, nfe, ncp],      0.0)
+                              # set_start_value(alg_us[nz, nfe, ncp],     0)
+                              set_start_value(u[nu, nfe],               u_guess[nu])
 
                         end
                         #endregion
@@ -127,10 +126,13 @@ function Build_OCP(x0_us, Q_whb, Tf)
                         
                         # @variable(model1, z_ADMM)
                         # fix(z_ADMM, 60.0)
+                        if np == 1
+                              fix(x0[1], x_guess[1])
+                        end
 
 
                   # Objective
-                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) )    #Duty in KJ
+                  # @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) )    #Duty in KJ
 
             #endregion
 
@@ -178,10 +180,14 @@ function Build_OCP(x0_us, Q_whb, Tf)
                   JuMP.solve_time(model1::Model)
 
                   star_dx_us = JuMP.value.(dx_us[:,:,NCP])
+                  star_x0 = JuMP.value.(x0)
 
-                  #Getting Varables directly from expressions
+                  #Getting Varables directly from expressions - Unscaled Units
+                  star_x0_us = star_x0            .*  (us_x - ls_x) + ls_x
+
+
                   star_T_tes = JuMP.value.(T_tes[:, NCP])
-                                    star_T_tes = cat(x0_us, star_T_tes, dims = 1)     #todo - scaling made automatic
+                                    star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)     
                   
                   star_T_b    = JuMP.value.(T_b[:, NCP])
                   star_T_phb  = JuMP.value.(T_phb[:, NCP])

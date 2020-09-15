@@ -1,24 +1,26 @@
 
 
-using Revise
-includet("MyFile.jl")
-using Main.Mymodule
+using Plots
 
+@userplot CirclePlot
+@recipe function f(cp::CirclePlot)
+    x, y, i = cp.args
+    n = length(x)
+    inds = circshift(1:n, 1 - i)
+    # linewidth --> range(0, 10, length = n)
+    # seriesalpha --> range(0, 1, length = n)
+    # aspect_ratio --> 1
+    # label --> false
+    x[inds], y[inds]
+end
 
-# include("MyFile.jl")
-# using Main.Mymodule
+n = 150
+t = range(0, 2π, length = n)
+x = sin.(t)
+y = cos.(t)
 
-#accesssing from workspace directly
-println(x)  
-println(y)  #Does not update it's value
-mygreeting()
+anim = @animate for i ∈ 1:n
+    circleplot(x, y, i)
+end
 
-
-println(Main.Mymodule.x)
-println(Main.Mymodule.y)    #Does not update it's value
-println(Main.Mymodule.mygreeting())
-
-# includet("C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Escape_Codes/parameters.jl")
-
-
-
+gif(anim, "anim_fps15.gif", fps = 15)
