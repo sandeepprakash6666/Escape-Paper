@@ -12,7 +12,7 @@ global N_Scen, N_Part = 1, 2
     T01 = 0.0
     Tf1 = 30.0
     t_plot1 = collect(T01:dt:Tf1) 
-    Q_whb1 = vcat(1.0*ones(10,1), 1.2*ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
+    Q_whb1 = vcat(1.0*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6
     
     P1 = Build_OCP(Q_whb1, Tf1 - T01 , (1,1))
 
@@ -32,7 +32,7 @@ global N_Scen, N_Part = 1, 2
     T02 = 30.0
     Tf2 = 60.0
     t_plot2 = collect(T02:dt:Tf2) 
-    Q_whb2 = vcat(1.0*ones(10,1), 1.3*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something similar
+    Q_whb2 = vcat(1.3*ones(10,1), 1.0*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something similar
 
     P2 = Build_OCP(Q_whb2, Tf2 - T02, (1,2))
 
