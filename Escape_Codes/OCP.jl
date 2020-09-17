@@ -184,7 +184,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         #endregion-> std code     
 
       ##* Solve the model
-            # if Solve_OCP == true
+            if Solve_OCP == true
                   optimize!(model1)
                   JuMP.termination_status(model1)
                   JuMP.solve_time(model1::Model)
@@ -206,7 +206,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                   
                   star_α      = JuMP.value.(α[:])
                   star_Q_phb  = JuMP.value.(Q_phb[:])
-            # end
+            end
             
       ##* Plot Solution
             if Display_Plots == true

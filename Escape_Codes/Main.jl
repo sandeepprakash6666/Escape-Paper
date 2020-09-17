@@ -17,9 +17,11 @@ global N_Scen, N_Part = 1, 2
     P1 = Build_OCP(Q_whb1, Tf1 - T01 , (1,1))
 
     # Naming variables to access solution
-    V_tes1   = getindex(P1, :V_tes)
+    des1     = getindex(P1, :des)    
     x1       = getindex(P1, :x)
     x01      = getindex(P1, :x0)
+
+    V_tes1   = getindex(P1, :V_tes)
     T_tes1   = getindex(P1, :T_tes)
     T_b1     = getindex(P1, :T_tes)
     T_phb1   = getindex(P1, :T_phb)
@@ -38,9 +40,11 @@ global N_Scen, N_Part = 1, 2
     P2 = Build_OCP(Q_whb2, Tf2 - T02, (1,2))
 
     # Naming variables to access solution
-    V_tes2  = getindex(P2, :V_tes)
+    des2    = getindex(P2, :des)    
     x2      = getindex(P2, :x)
     x02     = getindex(P2, :x0)
+
+    V_tes2  = getindex(P2, :V_tes)
     T_tes2  = getindex(P2, :T_tes)
     T_b2    = getindex(P2, :T_tes)
     T_phb2  = getindex(P2, :T_phb)
@@ -60,9 +64,11 @@ global N_Scen, N_Part = 1, 2
 
     Centr = Build_OCP(Q_whb, Tf - T0, (1,1))
     # Naming variables to access solution
-    V_tes   = getindex(Centr, :V_tes)
+    des     = getindex(Centr, :des)    
     x       = getindex(Centr, :x)
     x0      = getindex(Centr, :x0)
+
+    V_tes   = getindex(Centr, :V_tes)
     T_tes   = getindex(Centr, :T_tes)
     T_b     = getindex(Centr, :T_tes)
     T_phb   = getindex(Centr, :T_phb)
@@ -101,13 +107,22 @@ global N_Scen, N_Part = 1, 2
 
 ##* Solve subproblems
 
-z = [120, 60.0]
-lambda1, lambda2 = 0.0.*z, 0.0.*z
+z_des_us = [120.0]
+z_diff_us = [60.0]
+
+z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
+z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
+lambda1_des, lambda2_des    = 0.0.*z_des,  0.0.*z_des
+lambda1_diff, lambda2_diff  = 0.0.*z_diff, 0.0.*z_diff
+
 rho = 1e6
 
     #region-> declaring arrays for Plotting
-    plot_z = [z]
-    plot_lambda1, plot_lambda2 = [lambda1], [lambda2]
+    plot_z_des = [z_des]
+    plot_z_diff = [z_diff]
+    plot_lambda1_des, plot_lambda2_des = [lambda1_des], [lambda2_des]
+    plot_lambda1_diff, plot_lambda2_diff = [lambda1_diff], [lambda2_diff]
+
     plot_V_tes1 = [120.0]
     plot_V_tes2 = [120.0]
     plot_T_tes1 = NaN*t_plot1
@@ -115,16 +130,18 @@ rho = 1e6
     #endregion
 
 ##* ADMM Iterations
-for ADMM_k = 1:5
-    global z
-    global lambda1, lambda2
+NIter = 10
+for ADMM_k = 1:NIter
+    global z_des, z_diff
+    global lambda1_des, lambda2_des
+    global lambda1_diff,lambda2_diff
     global plot_V_tes1, plot_V_tes2
     global plot_T_tes1, plot_T_tes2
     
     #region-> #*Solve SP 1
     
-    @NLobjective(P1, Min, sum( Q_phb1[nfe] for nfe in 1:30 ) + 20*(V_tes1)^2    + lambda1[1]*(V_tes1 - z[1])      + rho/2*(V_tes1 - z[1])^2 
-                                                                                + lambda1[2]*(T_tes1[end] - z[2]) + rho/2*(T_tes1[end] - z[2])^2  )     #todo - Make the penalty variables between 0-1
+    @NLobjective(P1, Min, sum( Q_phb1[nfe] for nfe in 1:30 ) + 20*(V_tes1)^2    + lambda1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
+                                                                                + lambda1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo - Make the penalty variables between 0-1
     
     optimize!(P1)
     JuMP.termination_status(P1)
@@ -132,24 +149,28 @@ for ADMM_k = 1:5
     JuMP.objective_value(P1)
         
     ## extract solution to Julia variables
-    star_x01 = JuMP.value.(x01) 
-    star_x01_us = star_x01            .*  (100 - 0) .+ 0
-    
-    star_V_tes1 = JuMP.value(V_tes1)
-    star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
-                star_T_tes1 = cat(star_x01_us[1], star_T_tes1, dims = 1)     
-    star_T_b1    = JuMP.value.(T_b1[:, NCP])
-    star_T_phb1  = JuMP.value.(T_phb1[:, NCP])
-    star_T_whb1  = JuMP.value.(T_whb1[:, NCP])
+        #scaled values
+        star_des1 = JuMP.value.(des1)
+        star_x01 = JuMP.value.(x01) 
+        star_x1 = JuMP.value.(x1)
+        
+        #unscaled values
+        star_x01_us = star_x01            .*  (100 - 0) .+ 0
+        star_V_tes1 = JuMP.value(V_tes1)
+        star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
+                    star_T_tes1 = cat(star_x01_us[1], star_T_tes1, dims = 1)     
+        star_T_b1    = JuMP.value.(T_b1[:, NCP])
+        star_T_phb1  = JuMP.value.(T_phb1[:, NCP])
+        star_T_whb1  = JuMP.value.(T_whb1[:, NCP])
 
-    star_α1      = JuMP.value.(α1[:])
-    star_Q_phb1  = JuMP.value.(Q_phb1[:])
+        star_α1      = JuMP.value.(α1[:])
+        star_Q_phb1  = JuMP.value.(Q_phb1[:])
     #endregion
 
     #region-> #*Solve SP2 
 
-    @NLobjective(P2, Min, sum( Q_phb2[nfe] for nfe in 1:30 ) + 20*(V_tes2)^2    + lambda2[1]*(V_tes2 - z[1])    + rho/2*(V_tes2 - z[1])^2
-                                                                                + lambda2[2]*(T_tes2[1] - z[2]) + rho/2*(T_tes2[1] - z[2])^2   ) 
+    @NLobjective(P2, Min, sum( Q_phb2[nfe] for nfe in 1:30 ) + 20*(V_tes2)^2    + lambda2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
+                                                                                + lambda2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
 
     optimize!(P2)
     JuMP.termination_status(P2)
@@ -157,33 +178,38 @@ for ADMM_k = 1:5
     JuMP.objective_value(P2)
 
     ## extract solution to Julia variables
-    star_x02 = JuMP.value.(x02) 
-    star_x02_us = star_x02            .*  (100.0 - 0.0) .+ 0.0          #todo - scaling to be made automatic
+        #scaled values
+        star_des2 = JuMP.value.(des2)
+        star_x02 = JuMP.value.(x02) 
+        star_x2 = JuMP.value.(x2)
+        
+        #unscaled Values
+        star_x02_us = star_x02            .*  (100.0 - 0.0) .+ 0.0          #todo - scaling to be made automatic
+        star_V_tes2 = JuMP.value(V_tes2)
+        star_T_tes2 = JuMP.value.(T_tes2[:,NCP])
+                    star_T_tes2 = cat(star_x02_us[1], star_T_tes2, dims = 1)     
+        star_T_b2    = JuMP.value.(T_b2[:, NCP])
+        star_T_phb2  = JuMP.value.(T_phb2[:, NCP])
+        star_T_whb2  = JuMP.value.(T_whb2[:, NCP])
 
-    star_V_tes2 = JuMP.value(V_tes2)
-    star_T_tes2 = JuMP.value.(T_tes2[:,NCP])
-                star_T_tes2 = cat(star_x02_us[1], star_T_tes2, dims = 1)     
-    star_T_b2    = JuMP.value.(T_b2[:, NCP])
-    star_T_phb2  = JuMP.value.(T_phb2[:, NCP])
-    star_T_whb2  = JuMP.value.(T_whb2[:, NCP])
-
-    star_α2      = JuMP.value.(α2[:])
-    star_Q_phb2  = JuMP.value.(Q_phb2[:])
+        star_α2      = JuMP.value.(α2[:])
+        star_Q_phb2  = JuMP.value.(Q_phb2[:])
     #endregion
 
     #* ADMM Updates
-    z[1] = (star_V_tes1 + star_V_tes2)/2
-    z[2] = (star_T_tes1[end] + star_T_tes2[1])/2
+    z_des[1]    = (star_des1[1] + star_des2[1])/2
+    z_diff[1]   = (star_x1[1, end, end] + star_x02[1])/2
 
-    lambda1[1] = lambda1[1] + rho*(star_V_tes1 - z[1])
-    lambda2[1] = lambda2[1] + rho*(star_V_tes2 - z[1])
+    lambda1_des[1] = lambda1_des[1] + rho*(star_des1[1] - z_des[1])
+    lambda2_des[1] = lambda2_des[1] + rho*(star_des2[1] - z_des[1])
 
-    lambda1[2] = lambda1[2] + rho*(star_T_tes1[end]   - z[2])
-    lambda2[2] = lambda2[2] + rho*(star_T_tes2[1]     - z[2])
+    lambda1_diff[1] = lambda1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
+    lambda2_diff[1] = lambda2_diff[1] + rho*(star_x02[1]            - z_diff[1])
 
         #region-> Storing in Plots
-        plot_V_tes1 = cat(plot_V_tes1, star_V_tes1, dims = 2)
-        plot_V_tes2 = cat(plot_V_tes2, star_V_tes2, dims = 2)
+        plot_V_tes1 = append!(plot_V_tes1, star_V_tes1)
+        plot_V_tes2 = append!(plot_V_tes2, star_V_tes2)
+        
         plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
         plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
         # append!(plot_lambda1, lambda1)
@@ -201,11 +227,16 @@ end
     # gr()
 
     #final point
-    p11 = plot(t_plot1, plot_T_tes1[:,end], ylim = [55,70] )
+    p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70] )
     p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70])
 
     plot_V_tes1
-    p21 = plot(plot_V_tes1[:], plot_V_tes2[:])
+    plot_V_tes2
+    plot_T_tes1
+    plot_T_tes2
+
+    plot_Iter = collect(1:NIter)
+    p21 = plot(plot_Iter, plot_V_tes1[:])
     # gui(fig1)
 
     # plot_lambda1
