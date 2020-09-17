@@ -118,10 +118,12 @@ lambda1_diff, lambda2_diff  = 0.0.*z_diff, 0.0.*z_diff
 rho = 1e7
 
     #region-> declaring arrays for Plotting
-    plot_z_des = [z_des]
-    plot_z_diff = [z_diff]
+    plot_z_des = copy(z_des)
+    plot_z_diff = copy(z_diff)
     plot_lambda1_des, plot_lambda2_des = copy(lambda1_des), copy(lambda2_des)
     plot_lambda1_diff, plot_lambda2_diff = copy(lambda1_diff), copy(lambda2_diff)
+    plot_Obj1 = []; plot_Obj2 = []
+
 
     plot_V_tes1 = [120.0]
     plot_V_tes2 = [120.0]
@@ -130,11 +132,12 @@ rho = 1e7
     #endregion
 
 ##* ADMM Iterations
-NIter = 20
-# for ADMM_k = 1:NIter
+NIter = 10
+# for ADMM_k = 1:NIter-1
     global z_des, z_diff
     global lambda1_des, lambda2_des
     global lambda1_diff,lambda2_diff
+    global plot_Obj1, plot_Obj2
     global plot_V_tes1, plot_V_tes2
     global plot_T_tes1, plot_T_tes2
     
@@ -146,13 +149,13 @@ NIter = 20
     optimize!(P1)
     JuMP.termination_status(P1)
     JuMP.solve_time(P1::Model)
-    JuMP.objective_value(P1)
+    star_Obj1 = JuMP.objective_value(P1)
         
     ## extract solution to Julia variables
         #scaled values
         star_des1 = JuMP.value.(des1)
         star_x01 = JuMP.value.(x01) 
-        star_x1 = JuMP.value.(x1)
+        star_x1 = JuMP.value.(x1)[:,:,NCP]
         
         #unscaled values
         star_x01_us = star_x01            .*  (100 - 0) .+ 0
@@ -175,13 +178,13 @@ NIter = 20
     optimize!(P2)
     JuMP.termination_status(P2)
     JuMP.solve_time(P2::Model)
-    JuMP.objective_value(P2)
+    star_Obj2 = JuMP.objective_value(P2)
 
     ## extract solution to Julia variables
         #scaled values
         star_des2 = JuMP.value.(des2)
         star_x02 = JuMP.value.(x02) 
-        star_x2 = JuMP.value.(x2)
+        star_x2 = JuMP.value.(x2)[:,:,NCP]
         
         #unscaled Values
         star_x02_us = star_x02            .*  (100.0 - 0.0) .+ 0.0          #todo - scaling to be made automatic
@@ -207,16 +210,28 @@ NIter = 20
     lambda2_diff[1] = lambda2_diff[1] + rho*(star_x02[1]            - z_diff[1])
 
         #region-> Storing in Plots
-        append!(plot_V_tes1, star_V_tes1)
-        append!(plot_V_tes2, star_V_tes2)
+            #unscaled values
+            #todo - add plotting for des1, x1, x01  and 2
+
+            append!(plot_z_des, z_des)
+            append!(plot_z_diff, z_diff)
+
+            append!(plot_lambda1_des, lambda1_des)
+            append!(plot_lambda2_des, lambda2_des)
+            append!(plot_lambda1_diff, lambda1_diff)
+            append!(plot_lambda2_diff, lambda2_diff)
+            
+            append!(plot_Obj1, star_Obj1)
+            append!(plot_Obj2, star_Obj2)
+
+            #scaled values
+            append!(plot_V_tes1, star_V_tes1)
+            append!(plot_V_tes2, star_V_tes2)
+            
+            plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
+            plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
         
-        plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
-        plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
-        
-        append!(plot_lambda1_des, lambda1_des)
-        append!(plot_lambda2_des, lambda2_des)
-        append!(plot_lambda1_diff, lambda1_diff)
-        append!(plot_lambda2_diff, lambda2_diff)
+
 
         # append!(plot_z, z)
         #endregion
@@ -232,11 +247,25 @@ NIter = 20
     plot_T_tes1
     plot_T_tes2
 
+    plot_z_des
+    plot_z_diff
     plot_lambda1_des
     plot_lambda1_diff
     plot_lambda2_diff
+    plot_Obj1
+    plot_Obj2
 
+    penalty1 = NaN*zeros(NIter)
+    penalty2 = NaN*zeros(NIter)
+    
+    for nIter in 1:NIter    #todo - penalty needs to be calculated from scaled variables
+        # nIter = 2
+        penalty1[nIter] =   plot_lambda1_des[nIter] *(plot_V_tes1[nIter] - plot_z_des[nIter])      + rho/2*(plot_V_tes1[nIter] - plot_z_des[nIter])^2   + 
+                            plot_lambda1_diff[nIter]*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])  + rho/2*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])^2
 
+        penalty2[nIter] =   plot_lambda2_des[nIter] *(plot_V_tes2[nIter] - plot_z_des[nIter])      + rho/2*(plot_V_tes2[nIter] - plot_z_des[nIter])^2   + 
+                            plot_lambda2_diff[nIter]*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])  + rho/2*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])^2
+    end
 ## 
 #choose backend for plots
     plotly()
