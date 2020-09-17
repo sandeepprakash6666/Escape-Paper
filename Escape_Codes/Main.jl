@@ -115,13 +115,13 @@ z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
 lambda1_des, lambda2_des    = 0.0.*z_des,  0.0.*z_des
 lambda1_diff, lambda2_diff  = 0.0.*z_diff, 0.0.*z_diff
 
-rho = 1e6
+rho = 1e7
 
     #region-> declaring arrays for Plotting
     plot_z_des = [z_des]
     plot_z_diff = [z_diff]
-    plot_lambda1_des, plot_lambda2_des = [lambda1_des], [lambda2_des]
-    plot_lambda1_diff, plot_lambda2_diff = [lambda1_diff], [lambda2_diff]
+    plot_lambda1_des, plot_lambda2_des = copy(lambda1_des), copy(lambda2_des)
+    plot_lambda1_diff, plot_lambda2_diff = copy(lambda1_diff), copy(lambda2_diff)
 
     plot_V_tes1 = [120.0]
     plot_V_tes2 = [120.0]
@@ -130,8 +130,8 @@ rho = 1e6
     #endregion
 
 ##* ADMM Iterations
-NIter = 10
-for ADMM_k = 1:NIter
+NIter = 20
+# for ADMM_k = 1:NIter
     global z_des, z_diff
     global lambda1_des, lambda2_des
     global lambda1_diff,lambda2_diff
@@ -141,7 +141,7 @@ for ADMM_k = 1:NIter
     #region-> #*Solve SP 1
     
     @NLobjective(P1, Min, sum( Q_phb1[nfe] for nfe in 1:30 ) + 20*(V_tes1)^2    + lambda1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
-                                                                                + lambda1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo - Make the penalty variables between 0-1
+                                                                                + lambda1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     
     
     optimize!(P1)
     JuMP.termination_status(P1)
@@ -207,22 +207,38 @@ for ADMM_k = 1:NIter
     lambda2_diff[1] = lambda2_diff[1] + rho*(star_x02[1]            - z_diff[1])
 
         #region-> Storing in Plots
-        plot_V_tes1 = append!(plot_V_tes1, star_V_tes1)
-        plot_V_tes2 = append!(plot_V_tes2, star_V_tes2)
+        append!(plot_V_tes1, star_V_tes1)
+        append!(plot_V_tes2, star_V_tes2)
         
         plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
         plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
-        # append!(plot_lambda1, lambda1)
-        # append!(plot_lambda2, lambda2)
+        
+        append!(plot_lambda1_des, lambda1_des)
+        append!(plot_lambda2_des, lambda2_des)
+        append!(plot_lambda1_diff, lambda1_diff)
+        append!(plot_lambda2_diff, lambda2_diff)
+
         # append!(plot_z, z)
         #endregion
 
         #todo - Setting warm start - How to?
-end
+# end
 
 
 ##* Plotting ADMM iterations - Summary
-    #choose backend for plots
+    
+    plot_V_tes1
+    plot_V_tes2
+    plot_T_tes1
+    plot_T_tes2
+
+    plot_lambda1_des
+    plot_lambda1_diff
+    plot_lambda2_diff
+
+
+## 
+#choose backend for plots
     plotly()
     # gr()
 
@@ -230,13 +246,12 @@ end
     p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70] )
     p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70])
 
-    plot_V_tes1
-    plot_V_tes2
-    plot_T_tes1
-    plot_T_tes2
 
-    plot_Iter = collect(1:NIter)
+
+    plot_Iter = collect(0:NIter)
     p21 = plot(plot_Iter, plot_V_tes1[:])
+    p21 = plot!(plot_Iter, plot_V_tes2[:])
+
     # gui(fig1)
 
     # plot_lambda1
