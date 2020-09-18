@@ -122,6 +122,8 @@ lambda1_diff = 0.0.*z_diff
 rho = 1e3
 
     #region-> declaring arrays for Plotting
+    plot_rho = copy([rho])
+
     plot_z_des  = copy(z_des)
     plot_z_diff = copy(z_diff)
 
@@ -139,7 +141,6 @@ rho = 1e3
         plot_lambda2_diff = copy(lambda2_diff)
         plot_Obj2 = [NaN]
 
-
     plot_V_tes1 = [120.0]
     plot_T_tes1 = NaN*t_plot1
 
@@ -148,9 +149,11 @@ rho = 1e3
     #endregion
 
 ##* ADMM Iterations
-NIter = 50
+NIter = 10
 for ADMM_k = 2:NIter
     #ADMM values
+    global rho
+    global plot_rho
     global z_des, z_diff
     global lambda1_des, lambda2_des
     global lambda1_diff,lambda2_diff
@@ -243,6 +246,15 @@ for ADMM_k = 2:NIter
     dual_res_diff = rho*(z_diff[1] - plot_z_diff[end])
     dual_res = (dual_res_des[1]^2 + dual_res_diff[1]^2)^0.5
 
+    ##* rho update heuristic
+    # if prim_res > 10*dual_res
+    #     rho = rho*2
+    # elseif dual_res > 10*prim_res
+    #     rho = rho/2
+    # else
+    # end
+    append!(plot_rho, rho)
+
         #region-> Storing in Plots
             #scaled values
             append!(plot_z_des, z_des)
@@ -273,7 +285,7 @@ for ADMM_k = 2:NIter
 
         #todo - Setting warm start - How to?
 end
-
+plot_rho
 ##* Calculating ADMM - Summary Stats #todo - add here
     
     #Penalty
