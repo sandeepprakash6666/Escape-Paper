@@ -84,7 +84,7 @@ global N_Scen, N_Part = 1, 2
     optimize!(Centr)
     JuMP.termination_status(Centr)
     JuMP.solve_time(Centr::Model)
-    JuMP.objective_value(Centr)
+    star_Obj = JuMP.objective_value(Centr)
 
     #extract solution to Julia variables
     star_x0 = JuMP.value.(x0) 
@@ -105,41 +105,66 @@ global N_Scen, N_Part = 1, 2
     plotly()
     plot(t_plot, star_T_tes, ylim = [55,70])
 
-##* Solve subproblems
+##* Solve subproblems using ADMM
 
 z_des_us = [120.0]
 z_diff_us = [60.0]
 
-z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
-z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
-lambda1_des, lambda2_des    = 0.0.*z_des,  0.0.*z_des
-lambda1_diff, lambda2_diff  = 0.0.*z_diff, 0.0.*z_diff
+    z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
+    z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
 
-rho = 1e7
+lambda1_des = 0.0.*z_des
+lambda1_diff = 0.0.*z_diff
+
+    lambda2_des = 0.0.*z_des
+    lambda2_diff = 0.0.*z_diff
+
+rho = 1e3
 
     #region-> declaring arrays for Plotting
-    plot_z_des = copy(z_des)
+    plot_z_des  = copy(z_des)
     plot_z_diff = copy(z_diff)
-    plot_lambda1_des, plot_lambda2_des = copy(lambda1_des), copy(lambda2_des)
-    plot_lambda1_diff, plot_lambda2_diff = copy(lambda1_diff), copy(lambda2_diff)
-    plot_Obj1 = []; plot_Obj2 = []
+
+    plot_des1 = copy(z_des)
+    plot_x1 = NaN*t_plot1[2:end]
+    plot_x01 = copy(z_diff)
+    plot_lambda1_des = copy(lambda1_des)
+    plot_lambda1_diff = copy(lambda1_diff)
+    plot_Obj1 = [NaN]
+        
+        plot_des2 = copy(z_des)
+        plot_x2 = NaN*t_plot2[2:end]
+        plot_x02 = copy(z_diff)
+        plot_lambda2_des = copy(lambda2_des)
+        plot_lambda2_diff = copy(lambda2_diff)
+        plot_Obj2 = [NaN]
 
 
     plot_V_tes1 = [120.0]
-    plot_V_tes2 = [120.0]
     plot_T_tes1 = NaN*t_plot1
-    plot_T_tes2 = NaN*t_plot2
+
+        plot_V_tes2 = [120.0]
+        plot_T_tes2 = NaN*t_plot2
     #endregion
 
 ##* ADMM Iterations
-NIter = 10
-# for ADMM_k = 1:NIter-1
+NIter = 50
+for ADMM_k = 2:NIter
+    #ADMM values
     global z_des, z_diff
     global lambda1_des, lambda2_des
     global lambda1_diff,lambda2_diff
-    global plot_Obj1, plot_Obj2
-    global plot_V_tes1, plot_V_tes2
-    global plot_T_tes1, plot_T_tes2
+        #Plotting - scaled
+        global plot_z_des, plot_z_diff
+        global plot_des1, plot_des2
+        global plot_x01, plot_x02
+        global plot_x1, plot_x2
+        global plot_lambda1_des, plot_lambda2_des
+        global plot_lambda1_diff, plot_lambda2_diff
+        global plot_Obj1, plot_Obj2
+        #Plotting - Unscaled
+        global plot_V_tes1, plot_V_tes2
+        global plot_T_tes1, plot_T_tes2
     
     #region-> #*Solve SP 1
     
@@ -203,132 +228,146 @@ NIter = 10
     z_des[1]    = (star_des1[1] + star_des2[1])/2
     z_diff[1]   = (star_x1[1, end, end] + star_x02[1])/2
 
+
     lambda1_des[1] = lambda1_des[1] + rho*(star_des1[1] - z_des[1])
     lambda2_des[1] = lambda2_des[1] + rho*(star_des2[1] - z_des[1])
 
     lambda1_diff[1] = lambda1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
     lambda2_diff[1] = lambda2_diff[1] + rho*(star_x02[1]            - z_diff[1])
 
-        #region-> Storing in Plots
-            #unscaled values
-            #todo - add plotting for des1, x1, x01  and 2
+    prim_res_des  = star_des1[1]  - z_des[1] 
+    prim_res_diff = star_x1[1, end, end] - z_diff[1]
+    prim_res =  (prim_res_des[1]^2 + prim_res_diff[1]^2)^0.5
 
+    dual_res_des = rho*(z_des[1] - plot_z_des[end])
+    dual_res_diff = rho*(z_diff[1] - plot_z_diff[end])
+    dual_res = (dual_res_des[1]^2 + dual_res_diff[1]^2)^0.5
+
+        #region-> Storing in Plots
+            #scaled values
             append!(plot_z_des, z_des)
             append!(plot_z_diff, z_diff)
-
+            
+            append!(plot_des1, star_des1)
+            append!(plot_x01, star_x01)
+            plot_x1 = cat(plot_x1, transpose(star_x1), dims = 2)
             append!(plot_lambda1_des, lambda1_des)
-            append!(plot_lambda2_des, lambda2_des)
             append!(plot_lambda1_diff, lambda1_diff)
-            append!(plot_lambda2_diff, lambda2_diff)
-            
             append!(plot_Obj1, star_Obj1)
-            append!(plot_Obj2, star_Obj2)
 
-            #scaled values
+                append!(plot_des2, star_des2)
+                append!(plot_x02, star_x02)
+                plot_x2 = cat(plot_x2, transpose(star_x2), dims = 2)
+                append!(plot_lambda2_des, lambda2_des)
+                append!(plot_lambda2_diff, lambda2_diff)
+                append!(plot_Obj2, star_Obj2)
+
+            #Unscaled values
             append!(plot_V_tes1, star_V_tes1)
-            append!(plot_V_tes2, star_V_tes2)
-            
             plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
-            plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
-        
 
+                append!(plot_V_tes2, star_V_tes2)
+                plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
 
-        # append!(plot_z, z)
         #endregion
 
         #todo - Setting warm start - How to?
-# end
+end
 
-
-##* Plotting ADMM iterations - Summary
+##* Calculating ADMM - Summary Stats #todo - add here
     
-    plot_V_tes1
-    plot_V_tes2
-    plot_T_tes1
-    plot_T_tes2
+    #Penalty
+        plot_penalty1   = NaN*zeros(NIter)
+        plot_penalty2   = NaN*zeros(NIter)
+        for nIter in 1:NIter   
+            # nIter = 2
+            plot_penalty1[nIter] =  plot_lambda1_des[nIter] *(plot_des1[nIter] - plot_z_des[nIter])         + rho/2*(plot_des1[nIter] - plot_z_des[nIter])^2   + 
+                                    plot_lambda1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
 
-    plot_z_des
-    plot_z_diff
-    plot_lambda1_des
-    plot_lambda1_diff
-    plot_lambda2_diff
-    plot_Obj1
-    plot_Obj2
+            plot_penalty2[nIter] =  plot_lambda2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2   + 
+                                    plot_lambda2_diff[nIter]*(plot_x02[nIter] - plot_z_diff[nIter])         + rho/2*(plot_x02[nIter] - plot_z_diff[nIter])^2
+        end
 
-    penalty1 = NaN*zeros(NIter)
-    penalty2 = NaN*zeros(NIter)
+    #Original Objective function value
+        plot_f1_star    = NaN*zeros(NIter)
+        plot_f2_star    = NaN*zeros(NIter)
+        for nIter in 1:NIter  
+            # nIter = 2 
+            plot_f1_star[nIter] = plot_Obj1[nIter] - plot_penalty1[nIter] 
+            plot_f2_star[nIter] = plot_Obj2[nIter] - plot_penalty2[nIter] 
+        end
     
-    for nIter in 1:NIter    #todo - penalty needs to be calculated from scaled variables
-        # nIter = 2
-        penalty1[nIter] =   plot_lambda1_des[nIter] *(plot_V_tes1[nIter] - plot_z_des[nIter])      + rho/2*(plot_V_tes1[nIter] - plot_z_des[nIter])^2   + 
-                            plot_lambda1_diff[nIter]*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])  + rho/2*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])^2
+    #Primal Residual
+        plot_prim_res_des = NaN*zeros(NIter)
+        plot_prim_res_diff = NaN*zeros(NIter)
+        plot_prim_res = NaN*zeros(NIter)
+        for nIter in 2:NIter
+            # nIter = 2
+            plot_prim_res_des[nIter] = plot_des1[nIter] - plot_z_des[nIter]
+            plot_prim_res_diff[nIter] = plot_x1[end,nIter] - plot_x02[nIter]
 
-        penalty2[nIter] =   plot_lambda2_des[nIter] *(plot_V_tes2[nIter] - plot_z_des[nIter])      + rho/2*(plot_V_tes2[nIter] - plot_z_des[nIter])^2   + 
-                            plot_lambda2_diff[nIter]*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])  + rho/2*(plot_T_tes1[end,nIter] - plot_z_diff[nIter])^2
-    end
-## 
-#choose backend for plots
+            plot_prim_res[nIter] = (plot_prim_res_des[nIter]^2 + plot_prim_res_diff[nIter]^2)^0.5
+        end
+    
+    #Dual Residual
+        plot_dual_res_des = NaN*zeros(NIter)
+        plot_dual_res_diff = NaN*zeros(NIter)
+        plot_dual_res = NaN*zeros(NIter)
+        for nIter in 2:NIter
+            # nIter = 2
+            plot_dual_res_des[nIter]  = rho*(plot_z_des[nIter] - plot_z_des[nIter-1])
+            plot_dual_res_diff[nIter] = rho*(plot_z_diff[nIter] - plot_z_diff[nIter-1])
+            
+            plot_dual_res[nIter] = (plot_dual_res_des[nIter]^2 + plot_dual_res_diff[nIter]^2)^0.5
+        end
+                    
+                    plot_penalty1
+                    plot_penalty1
+                    
+                    plot_f1_star
+                    plot_f2_star
+
+                    plot_prim_res_des
+                    plot_prim_res_diff
+                    plot_prim_res
+                    plot_dual_res_des
+                    plot_dual_res_diff
+                    plot_dual_res
+
+##* Plot ADMM itreations Summary
+
+    #choose backend for plots
     plotly()
     # gr()
 
-    #final point
-    p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70] )
-    p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70])
+    #Profiles - Differential States
+        p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70], label = "Ttes - SP1" )
+        p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70], label = "Ttes - SP2", title = "Diff state, rho = $rho" )
 
 
+    #Iteration Profiles - Design Variable
+        plot_Iter = collect(0:NIter-1)
+        p21 = plot(plot_Iter, plot_V_tes1[:],               label = "des - SP1")
+        p21 = plot!(plot_Iter, plot_V_tes2[:],              label = "des SP1")
+        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),     label = "des Centr", title = "Des var, rho = $rho" )
 
-    plot_Iter = collect(0:NIter)
-    p21 = plot(plot_Iter, plot_V_tes1[:])
-    p21 = plot!(plot_Iter, plot_V_tes2[:])
+    #Primal and Dual Infeasibility
+        p31 = plot(plot_Iter, plot_prim_res,                label  = "primal infeasibility", yscale = :log10)
+        p31 = plot!(plot_Iter, plot_dual_res,               label = "dual infeasibility",    yscale = :log10, title = "Infeasibility, rho = $rho")
 
-    # gui(fig1)
+    #Objective Function Values
+        p41 = plot(plot_Iter, plot_f1_star .+ plot_f2_star, label = "f - Distribuited")
+        p41 = plot!(plot_Iter, star_Obj.*ones(NIter),       label = "f - Central Sol'n" )
+        p41 = plot!(plot_Iter, plot_Obj1 .+ plot_Obj2,      label = "Augmented Lagrange", title = "Objective, rho = $rho")
+    
+        p51 = plot(plot_Iter, plot_f1_star,                 label ="f1 star")
+        p51 = plot!(plot_Iter, plot_penalty1,               label = "f1 penalty", title = "SP1 objective, rho = $rho")
 
-    # plot_lambda1
-    # plot_z
+##* Display Plots
+p11
+p21
+p31
+p41
+p51
 
-##* Plotting Complete Profiles
-
-    #region #*Plot Subproblem 1
-    # #Differential States
-    # p21 = plot(t_plot1, star_T_tes1)
-    # #Manipulated Variables
-    # p22 = plot(t_plot1[1:end-1], star_α1,
-    #                                                                     marker = true, linetype = :steppost)
-    # p23 = plot(t_plot1[1:end-1], star_Q_phb1,        
-    #                                                                     marker = true, linetype = :steppost)
-    # #Algebraic States
-    # p24 = plot(t_plot1[2:end], star_T_b1, 
-    #                                                                     marker = true)
-    # p24 = plot!(t_plot1[2:end], star_T_phb1) 
-    #                                                                     #marker = false)
-    # p25 = plot(t_plot1[2:end], star_T_whb1) 
-    #                                                             # marker = false)
-
-    # fig_P2 = plot(p21, p22, p23, p24, p25, layout = (5, 1))
-    # # gui(fig1)
-    #endregion
-
-    #region #*Plot Subproblem 2
-    #     #Differential States
-    #     p31 = plot(t_plot2, star_T_tes2                  )
-    #     #Manipulated Variables
-    #     p32 = plot(t_plot2[1:end-1], star_α2,
-    #                                                                         marker = true, linetype = :steppost)
-    #     p33 = plot(t_plot2[1:end-1], star_Q_phb2,
-    #                                                                         marker = true, linetype = :steppost)
-    #     #Algebraic States
-    #     p34 = plot(t_plot2[2:end], star_T_b2, 
-    #                                                                         marker = true)
-    #     p34 = plot!(t_plot2[2:end], star_T_phb2) 
-    #                                                                         #marker = false)
-    #     p35 = plot(t_plot2[2:end], star_T_whb2) 
-    #                                                                 # marker = false)
-
-    # fig_P3 = plot(p31, p32, p33, p34, p35, layout = (5, 1))
-
-
-    # fig_3 = plot(fig_P1, fig_P2, layout = (1,2))
-
-    # fig_4 = plot(p11, p21)
-    #endregion
 
