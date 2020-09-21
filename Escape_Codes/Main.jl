@@ -20,6 +20,7 @@ global N_Scen, N_Part = 1, 2
     des1     = getindex(P1, :des)    
     x1       = getindex(P1, :x)
     x01      = getindex(P1, :x0)
+    u1      = getindex(P1, :u)
 
     V_tes1   = getindex(P1, :V_tes)
     T_tes1   = getindex(P1, :T_tes)
@@ -43,6 +44,7 @@ global N_Scen, N_Part = 1, 2
     des2    = getindex(P2, :des)    
     x2      = getindex(P2, :x)
     x02     = getindex(P2, :x0)
+    u2      = getindex(P2, :u)
 
     V_tes2  = getindex(P2, :V_tes)
     T_tes2  = getindex(P2, :T_tes)
@@ -67,7 +69,8 @@ global N_Scen, N_Part = 1, 2
     des     = getindex(Centr, :des)    
     x       = getindex(Centr, :x)
     x0      = getindex(Centr, :x0)
-
+    u       = getindex(Centr, :u) 
+    
     V_tes   = getindex(Centr, :V_tes)
     T_tes   = getindex(Centr, :T_tes)
     T_b     = getindex(Centr, :T_tes)
@@ -79,7 +82,7 @@ global N_Scen, N_Part = 1, 2
 
 ##* Solve Central Problem
     
-    @NLobjective(Centr, Min, sum( Q_phb[nfe] for nfe in 1:60 ) + 40*(V_tes)^2)  #todo- generalize 60 and 40
+    @NLobjective(Centr, Min, sum( u[2,nfe] for nfe in 1:60 ) + 0.1*(des[1])^2)  #todo- generalize
 
     optimize!(Centr)
     JuMP.termination_status(Centr)
@@ -106,7 +109,7 @@ global N_Scen, N_Part = 1, 2
     plot(t_plot, star_T_tes, ylim = [55,70])
 
 ##* Solve subproblems using ADMM
-rho = 1e2
+rho = 5.0
 
 z_des_us = [111.3572]
 z_diff_us = [58.33155]
@@ -148,8 +151,8 @@ lambda1_diff  = 0.0.*z_diff
     #endregion
 
 ##* ADMM Iterations
-NIter = 100
-for ADMM_k = 2:NIter
+NIter = 5
+Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     #ADMM values
     global rho
     global plot_rho
@@ -170,7 +173,7 @@ for ADMM_k = 2:NIter
     
     #region-> #*Solve SP 1
     
-    @NLobjective(P1, Min, sum( Q_phb1[nfe] for nfe in 1:30 ) + 20*(V_tes1)^2    + lambda1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
+    @NLobjective(P1, Min, sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2   + lambda1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
                                                                                 + lambda1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
     
     optimize!(P1)
@@ -199,7 +202,7 @@ for ADMM_k = 2:NIter
 
     #region-> #*Solve SP2 
 
-    @NLobjective(P2, Min, sum( Q_phb2[nfe] for nfe in 1:30 ) + 20*(V_tes2)^2    + lambda2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
+    @NLobjective(P2, Min, sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2   + lambda2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
                                                                                 + lambda2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
 
     optimize!(P2)
@@ -254,7 +257,7 @@ for ADMM_k = 2:NIter
     end
     append!(plot_rho, rho)
 
-        #region-> Storing in Plots
+        #region-> #*Storing in Plots
             #scaled values
             append!(plot_z_des, z_des)
             append!(plot_z_diff, z_diff)
@@ -282,7 +285,22 @@ for ADMM_k = 2:NIter
 
         #endregion
 
-        #todo - Setting warm start - How to?
+        #region-> #*Warm Starting
+            # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
+            # set_start_value(des1[ndes],                star_des1[ndes])
+            # set_start_value(x01[nx],                   star_x01[nx])
+            # set_start_value(x1[nx, nfe, ncp],          star_x1[nx, nfe])
+            # # set_start_value(z1[nz, nfe, ncp],          z_guess[nz])
+            # # set_start_value(u1[nu, nfe],               u_guess[nu])
+
+            #         set_start_value(des2[ndes],                star_des2[ndes])
+            #         set_start_value(x02[nx],                   star_x02[nx])
+            #         set_start_value(x2[nx, nfe, ncp],          star_x2[nx, nfe])
+            #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
+            #         # set_start_value(u2[nu, nfe],               u_guess[nu])
+            # end
+        #endregion
+
 end
 plot_rho
 ##* Calculating ADMM - Summary Stats #todo - add here
@@ -378,11 +396,12 @@ plot_rho
         p51 = plot(plot_Iter, plot_f1_star,                 label ="f1 star")
         p51 = plot!(plot_Iter, plot_penalty1,               label = "f1 penalty", title = "SP1 objective, rho = $rho")
 
+        p61 = plot(plot_Iter, plot_rho,                     title = "Rho updates")
 ##* Display Plots
+
 p11
 p21
 p31
 p41
 p51
-
-
+display(Tot_time_in_ADMM)
