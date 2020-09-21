@@ -258,6 +258,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     append!(plot_rho, rho)
 
         #region-> #*Storing in Plots
+            
             #scaled values
             append!(plot_z_des, z_des)
             append!(plot_z_diff, z_diff)
@@ -286,6 +287,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
         #endregion
 
         #region-> #*Warm Starting
+
             # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
             # set_start_value(des1[ndes],                star_des1[ndes])
             # set_start_value(x01[nx],                   star_x01[nx])
@@ -299,6 +301,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
             #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
             #         # set_start_value(u2[nu, nfe],               u_guess[nu])
             # end
+
         #endregion
 
 end
