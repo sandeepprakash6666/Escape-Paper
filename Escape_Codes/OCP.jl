@@ -71,7 +71,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
             #region -> Variables and Objective
                   ## Declare Variables
                   @variable(model1, des[1:Ndes])                  #scaled volume
-                  @variable(model1, x0[1:Nx])               #initial guess - scaled
+                  @variable(model1, x0[1:Nx])                     #initial guess - scaled
 
                   @variable(model1, x[1:Nx, 1:NFE, 1:NCP])
                   @variable(model1, dx_us[1:Nx, 1:NFE, 1:NCP])

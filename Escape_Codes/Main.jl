@@ -20,7 +20,7 @@ global N_Scen, N_Part = 1, 2
     des1     = getindex(P1, :des)    
     x1       = getindex(P1, :x)
     x01      = getindex(P1, :x0)
-    u1      = getindex(P1, :u)
+    u1       = getindex(P1, :u)
 
     V_tes1   = getindex(P1, :V_tes)
     T_tes1   = getindex(P1, :T_tes)
@@ -151,7 +151,7 @@ lambda1_diff  = 0.0.*z_diff
     #endregion
 
 ##* ADMM Iterations
-NIter = 5
+NIter = 25
 Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     #ADMM values
     global rho
@@ -408,3 +408,5 @@ p31
 p41
 p51
 display(Tot_time_in_ADMM)
+
+
