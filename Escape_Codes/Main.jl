@@ -117,11 +117,11 @@ z_diff_us = [58.33155]
     z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
     z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
 
-lambda1_des   = 0.0.*z_des
-lambda1_diff  = 0.0.*z_diff
+μ1_des   = 0.0.*z_des
+μ1_diff  = 0.0.*z_diff
 
-    lambda2_des  = 0.0.*z_des
-    lambda2_diff = 0.0.*z_diff
+    μ2_des  = 0.0.*z_des
+    μ2_diff = 0.0.*z_diff
 
     #region-> declaring arrays for Plotting
     plot_rho = copy([rho])
@@ -132,15 +132,15 @@ lambda1_diff  = 0.0.*z_diff
     plot_des1 = copy(z_des)
     plot_x1 = NaN*t_plot1[2:end]
     plot_x01 = copy(z_diff)
-    plot_lambda1_des = copy(lambda1_des)
-    plot_lambda1_diff = copy(lambda1_diff)
+    plot_μ1_des = copy(μ1_des)
+    plot_μ1_diff = copy(μ1_diff)
     plot_Obj1 = [NaN]
         
         plot_des2 = copy(z_des)
         plot_x2 = NaN*t_plot2[2:end]
         plot_x02 = copy(z_diff)
-        plot_lambda2_des = copy(lambda2_des)
-        plot_lambda2_diff = copy(lambda2_diff)
+        plot_μ2_des = copy(μ2_des)
+        plot_μ2_diff = copy(μ2_diff)
         plot_Obj2 = [NaN]
 
     plot_V_tes1 = copy(z_des_us)
@@ -157,15 +157,15 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     global rho
     global plot_rho
     global z_des, z_diff
-    global lambda1_des, lambda2_des
-    global lambda1_diff,lambda2_diff
+    global μ1_des, μ2_des
+    global μ1_diff,μ2_diff
         #Plotting - scaled
         global plot_z_des, plot_z_diff
         global plot_des1, plot_des2
         global plot_x01, plot_x02
         global plot_x1, plot_x2
-        global plot_lambda1_des, plot_lambda2_des
-        global plot_lambda1_diff, plot_lambda2_diff
+        global plot_μ1_des, plot_μ2_des
+        global plot_μ1_diff, plot_μ2_diff
         global plot_Obj1, plot_Obj2
         #Plotting - Unscaled
         global plot_V_tes1, plot_V_tes2
@@ -173,8 +173,8 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     
     #region-> #*Solve SP 1
     
-    @NLobjective(P1, Min, sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2   + lambda1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
-                                                                                + lambda1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
+    @NLobjective(P1, Min, sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2   + μ1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
+                                                                                + μ1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
     
     optimize!(P1)
     JuMP.termination_status(P1)
@@ -202,8 +202,8 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
 
     #region-> #*Solve SP2 
 
-    @NLobjective(P2, Min, sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2   + lambda2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
-                                                                                + lambda2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
+    @NLobjective(P2, Min, sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2   + μ2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
+                                                                                + μ2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
 
     optimize!(P2)
     JuMP.termination_status(P2)
@@ -234,11 +234,11 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     z_diff[1]   = (star_x1[1, end, end] + star_x02[1])/2
 
 
-    lambda1_des[1] = lambda1_des[1] + rho*(star_des1[1] - z_des[1])
-    lambda2_des[1] = lambda2_des[1] + rho*(star_des2[1] - z_des[1])
+    μ1_des[1] = μ1_des[1] + rho*(star_des1[1] - z_des[1])
+    μ2_des[1] = μ2_des[1] + rho*(star_des2[1] - z_des[1])
 
-    lambda1_diff[1] = lambda1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
-    lambda2_diff[1] = lambda2_diff[1] + rho*(star_x02[1]            - z_diff[1])
+    μ1_diff[1] = μ1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
+    μ2_diff[1] = μ2_diff[1] + rho*(star_x02[1]            - z_diff[1])
 
     prim_res_des  = star_des1[1]  - z_des[1] 
     prim_res_diff = star_x1[1, end, end] - z_diff[1]
@@ -266,15 +266,15 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
             append!(plot_des1, star_des1)
             append!(plot_x01, star_x01)
             plot_x1 = cat(plot_x1, transpose(star_x1), dims = 2)
-            append!(plot_lambda1_des, lambda1_des)
-            append!(plot_lambda1_diff, lambda1_diff)
+            append!(plot_μ1_des, μ1_des)
+            append!(plot_μ1_diff, μ1_diff)
             append!(plot_Obj1, star_Obj1)
 
                 append!(plot_des2, star_des2)
                 append!(plot_x02, star_x02)
                 plot_x2 = cat(plot_x2, transpose(star_x2), dims = 2)
-                append!(plot_lambda2_des, lambda2_des)
-                append!(plot_lambda2_diff, lambda2_diff)
+                append!(plot_μ2_des, μ2_des)
+                append!(plot_μ2_diff, μ2_diff)
                 append!(plot_Obj2, star_Obj2)
 
             #Unscaled values
@@ -309,19 +309,19 @@ plot_rho
 ##* Calculating ADMM - Summary Stats #todo - add here
     
                                 #region->
-                                plot_lambda1_des
-                                plot_lambda1_diff
+                                plot_μ1_des
+                                plot_μ1_diff
                                 #endregion
     #Penalty
         plot_penalty1   = NaN*zeros(NIter)
         plot_penalty2   = NaN*zeros(NIter)
         for nIter in 1:NIter   
             # nIter = 2
-            plot_penalty1[nIter] =  plot_lambda1_des[nIter] *(plot_des1[nIter]   - plot_z_des[nIter])       + rho/2*(plot_des1[nIter]   - plot_z_des[nIter])^2   + 
-                                    plot_lambda1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
+            plot_penalty1[nIter] =  plot_μ1_des[nIter] *(plot_des1[nIter]   - plot_z_des[nIter])       + rho/2*(plot_des1[nIter]   - plot_z_des[nIter])^2   + 
+                                    plot_μ1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
 
-            plot_penalty2[nIter] =  plot_lambda2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2   + 
-                                    plot_lambda2_diff[nIter]*(plot_x02[nIter]  - plot_z_diff[nIter])        + rho/2*(plot_x02[nIter]  - plot_z_diff[nIter])^2
+            plot_penalty2[nIter] =  plot_μ2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2   + 
+                                    plot_μ2_diff[nIter]*(plot_x02[nIter]  - plot_z_diff[nIter])        + rho/2*(plot_x02[nIter]  - plot_z_diff[nIter])^2
         end
 
     #Original Objective function value
