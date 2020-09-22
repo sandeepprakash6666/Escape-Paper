@@ -66,7 +66,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
             NCP = 3
 
       ##* Defining Solver
-            model1 = Model(with_optimizer(Ipopt.Optimizer))
+            model1 = Model(with_optimizer(Ipopt.Optimizer, print_level=3 ))
 
             #region -> Variables and Objective
                   ## Declare Variables

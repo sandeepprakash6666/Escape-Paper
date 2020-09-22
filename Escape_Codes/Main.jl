@@ -5,7 +5,7 @@ include("OCP.jl")
 dt = 1.0
 NCP = 3
 global N_Scen, N_Part = 1, 2
-
+Obj_scaling = 2e1
 
 ##* Create problem Objects
     #region-> #*Create Subproblem 1
@@ -82,7 +82,7 @@ global N_Scen, N_Part = 1, 2
 
 ##* Solve Central Problem
     
-    @NLobjective(Centr, Min, sum( u[2,nfe] for nfe in 1:60 ) + 0.1*(des[1])^2)  #todo- generalize
+    @NLobjective(Centr, Min, Obj_scaling*(sum( u[2,nfe] for nfe in 1:60 ) + 0.1*(des[1])^2) )  #todo- generalize
 
     optimize!(Centr)
     JuMP.termination_status(Centr)
@@ -95,7 +95,7 @@ global N_Scen, N_Part = 1, 2
 
     star_V_tes = JuMP.value(V_tes)
     star_T_tes = JuMP.value.(T_tes[:,NCP])
-                star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
+                 star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
     star_T_b    = JuMP.value.(T_b[:, NCP])
     star_T_phb  = JuMP.value.(T_phb[:, NCP])
     star_T_whb  = JuMP.value.(T_whb[:, NCP])
@@ -106,12 +106,12 @@ global N_Scen, N_Part = 1, 2
 
     #plot Central solution
     plotly()
-    plot(t_plot, star_T_tes, ylim = [55,70])
+    plot(t_plot, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
 
 ##* Solve subproblems using ADMM
-rho = 5.0
+rho = 2.0*Obj_scaling
 
-z_des_us = [111.3572]
+z_des_us = [100.0]
 z_diff_us = [58.33155]
 
     z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
@@ -151,7 +151,7 @@ z_diff_us = [58.33155]
     #endregion
 
 ##* ADMM Iterations
-NIter = 25
+NIter = 50
 Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     #ADMM values
     global rho
@@ -173,8 +173,8 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     
     #region-> #*Solve SP 1
     
-    @NLobjective(P1, Min, sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2   + μ1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
-                                                                                + μ1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
+    @NLobjective(P1, Min, Obj_scaling*(sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2)     + μ1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
+                                                                                                + μ1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
     
     optimize!(P1)
     JuMP.termination_status(P1)
@@ -202,8 +202,8 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
 
     #region-> #*Solve SP2 
 
-    @NLobjective(P2, Min, sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2   + μ2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
-                                                                                + μ2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
+    @NLobjective(P2, Min, Obj_scaling*(sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2)     + μ2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
+                                                                                                + μ2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
 
     optimize!(P2)
     JuMP.termination_status(P2)
@@ -313,24 +313,24 @@ plot_rho
                                 plot_μ1_diff
                                 #endregion
     #Penalty
-        plot_penalty1   = NaN*zeros(NIter)
-        plot_penalty2   = NaN*zeros(NIter)
+        plot_Aug_terms1   = NaN*zeros(NIter)
+        plot_Aug_terms2   = NaN*zeros(NIter)
         for nIter in 1:NIter   
             # nIter = 2
-            plot_penalty1[nIter] =  plot_μ1_des[nIter] *(plot_des1[nIter]   - plot_z_des[nIter])       + rho/2*(plot_des1[nIter]   - plot_z_des[nIter])^2   + 
-                                    plot_μ1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
+            plot_Aug_terms1[nIter] =  plot_μ1_des[nIter] *(plot_des1[nIter]   - plot_z_des[nIter])       + rho/2*(plot_des1[nIter]   - plot_z_des[nIter])^2   + 
+                                      plot_μ1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
 
-            plot_penalty2[nIter] =  plot_μ2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2   + 
-                                    plot_μ2_diff[nIter]*(plot_x02[nIter]  - plot_z_diff[nIter])        + rho/2*(plot_x02[nIter]  - plot_z_diff[nIter])^2
-        end
+            plot_Aug_terms2[nIter] =  plot_μ2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2     + 
+                                      plot_μ2_diff[nIter]*(plot_x02[nIter]  - plot_z_diff[nIter])        + rho/2*(plot_x02[nIter]  - plot_z_diff[nIter])^2
+        end 
 
     #Original Objective function value
         plot_f1_star    = NaN*zeros(NIter)
         plot_f2_star    = NaN*zeros(NIter)
         for nIter in 1:NIter  
             # nIter = 2 
-            plot_f1_star[nIter] = plot_Obj1[nIter] - plot_penalty1[nIter] 
-            plot_f2_star[nIter] = plot_Obj2[nIter] - plot_penalty2[nIter] 
+            plot_f1_star[nIter] = plot_Obj1[nIter] - plot_Aug_terms1[nIter] 
+            plot_f2_star[nIter] = plot_Obj2[nIter] - plot_Aug_terms2[nIter] 
         end
     
     #Primal Residual
@@ -351,14 +351,14 @@ plot_rho
         plot_dual_res = NaN*zeros(NIter)
         for nIter in 2:NIter
             # nIter = 2
-            plot_dual_res_des[nIter]  = rho*(plot_z_des[nIter]  - plot_z_des[nIter-1])
-            plot_dual_res_diff[nIter] = rho*(plot_z_diff[nIter] - plot_z_diff[nIter-1])
+            plot_dual_res_des[nIter]  = plot_rho[nIter]*(plot_z_des[nIter]  - plot_z_des[nIter-1])
+            plot_dual_res_diff[nIter] = plot_rho[nIter]*(plot_z_diff[nIter] - plot_z_diff[nIter-1])
             
             plot_dual_res[nIter] = (plot_dual_res_des[nIter]^2 + plot_dual_res_diff[nIter]^2)^0.5
         end
                     
-                    plot_penalty1
-                    plot_penalty1
+                    plot_Aug_terms1
+                    plot_Aug_terms1
                     
                     plot_f1_star
                     plot_f2_star
@@ -380,7 +380,6 @@ plot_rho
         p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70], label = "Ttes - SP1" )
         p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70], label = "Ttes - SP2", title = "Diff state, rho = $rho" )
 
-
     #Iteration Profiles - Design Variable
         plot_Iter = collect(0:NIter-1)
         p21 = plot(plot_Iter, plot_V_tes1[:],               label = "des - SP1")
@@ -397,16 +396,23 @@ plot_rho
         p41 = plot!(plot_Iter, plot_Obj1 .+ plot_Obj2,      label = "Augmented Lagrange", title = "Objective, rho = $rho")
     
         p51 = plot(plot_Iter, plot_f1_star,                 label ="f1 star")
-        p51 = plot!(plot_Iter, plot_penalty1,               label = "f1 penalty", title = "SP1 objective, rho = $rho")
+        p51 = plot!(plot_Iter, plot_f2_star,                label ="f2 star")
+        p51 = plot!(plot_Iter, plot_Aug_terms1,             label = "f1 Aug Terms")
+        p51 = plot!(plot_Iter, plot_Aug_terms2,             label = "f2 Aug Terms", title = "SP1 objective, rho = $rho")
 
-        p61 = plot(plot_Iter, plot_rho,                     title = "Rho updates")
+        p61 = plot(plot_Iter, plot_μ1_des,                  label = "μ1_des")
+        p61 = plot!(plot_Iter, plot_μ2_des,                 label = "μ2_des")
+        p61 = plot!(plot_Iter, plot_μ1_diff,                label = "μ1 diff")
+        p61 = plot!(plot_Iter, plot_μ2_diff,                label = "μ2 diff", title = "multipliers, rho = $rho")
+
+        p71 = plot(plot_Iter, plot_rho,                     title = "Rho updates")
 ##* Display Plots
-
 p11
 p21
 p31
 p41
 p51
+p61
 display(Tot_time_in_ADMM)
 
 
