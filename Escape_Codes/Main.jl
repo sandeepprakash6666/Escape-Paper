@@ -109,7 +109,7 @@ Obj_scaling = 2e1
     plot(t_plot, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
 
 ##* Solve subproblems using ADMM
-rho = 2.0*Obj_scaling
+rho = 2.0 ##*Obj_scaling
 
 z_des_us = [100.0]
 z_diff_us = [58.33155]
@@ -249,12 +249,12 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     dual_res = (dual_res_des[1]^2 + dual_res_diff[1]^2)^0.5
 
     ##* rho update heuristic
-    if prim_res > 10*dual_res
-        rho = rho*2
-    elseif dual_res > 10*prim_res
-        rho = rho/2
-    else
-    end
+    # if prim_res > 10*dual_res
+    #     rho = rho*2
+    # elseif dual_res > 10*prim_res
+    #     rho = rho/2
+    # else
+    # end
     append!(plot_rho, rho)
 
         #region-> #*Storing in Plots
