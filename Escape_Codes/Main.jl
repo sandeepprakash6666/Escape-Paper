@@ -5,7 +5,7 @@ include("OCP.jl")
 dt = 1.0
 NCP = 3
 global N_Scen, N_Part = 1, 2
-Obj_scaling = 2e1
+Obj_scaling = 1.0
 
 ##* Create problem Objects
     #region-> #*Create Subproblem 1
@@ -109,10 +109,10 @@ Obj_scaling = 2e1
     plot(t_plot, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
 
 ##* Solve subproblems using ADMM
-rho = 2.0 ##*Obj_scaling
+rho = 2.0 
 
 z_des_us = [100.0]
-z_diff_us = [58.33155]
+z_diff_us = [60.0]
 
     z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
     z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
@@ -255,6 +255,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
     #     rho = rho/2
     # else
     # end
+    
     append!(plot_rho, rho)
 
         #region-> #*Storing in Plots
