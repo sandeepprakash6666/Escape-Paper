@@ -94,16 +94,16 @@ Obj_scaling = 1e0
                  star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
     
     #plot Central solution
+    println("Central Solution is $star_V_tes")
+
     plotly()
     plot(plot_t, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
-
-    println("Central Solution is $star_V_tes")
 
 ##* Solve subproblems using ADMM
 rho = 2.0*Obj_scaling
 
 z_des_us = [100.0]
-z_diff_us = [58.0]
+z_diff_us = [60.0]
 
     z_des = NaN.*zeros(Ndes)
     z_diff = NaN.*zeros(NS, NP-1, Nx)
@@ -144,7 +144,8 @@ z_diff_us = [58.0]
     #endregion
 
 ##* ADMM Iterations
-NIter = 20
+
+NIter = 100
 Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
     #ADMM values
     global rho
@@ -220,14 +221,16 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
             
         end
     #endregion
-    star_SP_Obj
-    star_SP_des
-    star_SP_x0
-    star_SP_x
-    star_SP_u
 
-    star_SP_V_tes
-    star_SP_T_tes
+        star_SP_Obj
+        star_SP_des
+        star_SP_x0
+        star_SP_x
+        star_SP_u
+
+        star_SP_V_tes
+        star_SP_T_tes
+
     #region->Oldcode
 
         # @NLobjective(P1, Min, Obj_scaling*(sum( u1[2,nfe] for nfe in 1:20 ) + 0.1/3*(des1[1])^2)     + μ1_des[1]*   (des1[1] - z_des[1])            + rho/2*(des1[1] - z_des[1])^2  
@@ -286,7 +289,6 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #     star_α2      = JuMP.value.(α2[:])
         #     star_Q_phb2  = JuMP.value.(Q_phb2[:])
     #endregion
-
  
     #* ADMM Updates
     #region ->#*z-Updates  
@@ -294,15 +296,12 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         for ndes in 1:Ndes
             # ndes = 1
             z_des[ndes] = sum(star_SP_des[nS, nP, ndes] for nS in 1:NS, nP in 1:NP )/(NS*NP)
-
         end
 
         #Differential
         for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
-        # nS = 1
-        # nP = 1
-        # nx = 1
-            z_diff[nS,nP,nx] = (star_SP_x[nS, nP, nx, end]  +   star_SP_x0[nS, nP, nx] )/2   
+        # nS = 1; nP = 1; nx = 1
+            z_diff[nS,nP,nx] = (star_SP_x[nS, nP, nx, end]  +   star_SP_x0[nS, nP+1, nx] )/2   
         end
         
     z_des
@@ -334,7 +333,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         prim_res_diff_L
         prim_res_diff_R
     #endregion
-    prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2  for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes, nx in 1:Nx ) )^0.5
+    prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes, nx in 1:Nx ) )^0.5
 
     #region ->#*Dual Residuals
         #Design
@@ -352,7 +351,7 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         dual_res_des
         dual_res_diff
     #endregion
-    dual_Residual_Norm = ( sum(dual_res_des[ndes]^2 + dual_res_diff[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
+    dual_Residual_Norm = ( sum(dual_res_des[ndes]^2       + dual_res_diff[nS,nP,nx]^2                                   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
 
     #region - Oldcode
         # prim_res_des = NaN*zeros(1,3)
@@ -428,17 +427,17 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
     #endregion
 
     #region ->#* rho update heuristic
-        # if prim_res > 10*dual_res
-        #     rho = rho*2
-        # elseif dual_res > 10*prim_res
-        #     rho = rho/2
-        # else
-        # end
+        if prim_Residual_Norm       > 10*dual_Residual_Norm
+            rho = rho*2
+        elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+            rho = rho/2
+        else
+        end
     #endregion
 
     #region ->#* Appending for Plotting
 
-        push!(plot_rho,       rho)
+        push!(plot_rho,       copy(rho))
         push!(plot_z_des,     copy(z_des) )
         push!(plot_z_diff,    copy(z_diff))
 
@@ -447,9 +446,9 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         push!(plot_x,         star_SP_x)
         push!(plot_x0,        star_SP_x0)
 
-        push!(plot_μ_des,     μ_des)
-        push!(plot_μ_diff_L,  μ_diff_L)
-        push!(plot_μ_diff_R,  μ_diff_R)
+        push!(plot_μ_des,     copy(μ_des))
+        push!(plot_μ_diff_L,  copy(μ_diff_L))
+        push!(plot_μ_diff_R,  copy(μ_diff_R))
 
         push!(plot_V_tes,     star_SP_V_tes)
         push!(plot_T_tes,     star_SP_T_tes)
@@ -475,102 +474,175 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
 
 end
 
-##*Temp Display 
-    plot_rho
-    plot_z_des
-    plot_z_diff
+plot_x0
+plot_z_des
+plot_z_diff
 
-    plot_Obj
-    plot_des
-    plot_x
-    plot_x0
+plot_μ_des
+plot_μ_diff_L   #!check if adjacent ones sum to zero (with SP3)
+plot_μ_diff_R
 
-    plot_μ_des
-    plot_μ_diff_L
-    plot_μ_diff_R
+##* Calculating ADMM - Summary Stats
 
-    plot_V_tes
-    plot_T_tes
+    #region ->Primal Residual
+        plot_prim_res_des = []
+        plot_prim_res_diff_L = []
+        plot_prim_res_diff_R = []
+        plot_prim_Residual_Norm = []
+        for nIter in 1:NIter
+            # nIter = 1
 
+            #Design
+            prim_res_des    = zeros(NS, NP, Ndes)
+            for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
+                prim_res_des[nS, nP, ndes] = plot_des[nIter][nS, nP, ndes] - plot_z_des[nIter][ndes]
+            end
+            
+            #Differential
+            prim_res_diff_L = zeros(NS, NP, Nx)
+            prim_res_diff_R = zeros(NS, NP, Nx)
+            for nS in 1:NS, nP in 1:NP, nx in 1:Nx
+                # nS = 1; nP = 3; nx = 1
+                if nP >= 2 #No left for 1st paertition
+                    prim_res_diff_L[nS, nP, nx] = plot_x0[nIter][nS, nP, nx]     - plot_z_diff[nIter][nS, nP-1, nx]
+                    
+                end
 
+                if nP <= NP - 1 #No right for Last
+                    prim_res_diff_R[nS, nP, nx] = plot_x[nIter][nS, nP, nx, end] - plot_z_diff[nIter][nS, nP, nx]
+                end
+            end
 
-    plot_Iter = collect(1:NIter)
+            #2-Norm of primal residual
+            prim_Residual_Norm = (sum( prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2    for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes, nx in 1:Nx) )^0.5
+            
+            push!(plot_prim_res_des,        prim_res_des)
+            push!(plot_prim_res_diff_L,     prim_res_diff_L)
+            push!(plot_prim_res_diff_R,     prim_res_diff_R)  
+            push!(plot_prim_Residual_Norm,  prim_Residual_Norm)
+                        
+        end
 
-    p11 = plot( plot_Iter, [plot_V_tes[nIter][1]  for nIter in 1:NIter])
-    p11 = plot!(plot_Iter, [plot_V_tes[nIter][2]  for nIter in 1:NIter])
-    p11 = plot!(plot_Iter, [plot_V_tes[nIter][3]  for nIter in 1:NIter])
-    p11 = plot!(plot_Iter, star_V_tes.*ones(NIter),                             label = "des Centr", title = "Des var, rho = $rho" )
+        plot_prim_res_des
+        plot_prim_res_diff_L
+        plot_prim_res_diff_R
+        plot_prim_Residual_Norm
 
-## 
+    #endregion
 
-p11
-display(Tot_time_in_ADMM)
- 
+    #region ->Dual Residual
+        plot_dual_res_des  = []
+        plot_dual_res_diff = []
+        plot_dual_Residual_Norm = []
+        for nIter in 1:NIter
+            # nIter = 2
 
+            dual_res_des = zeros(Ndes)
+            for ndes in 1:Ndes
+                dual_res_des[ndes] = plot_rho[nIter]* (plot_z_des[nIter+1][ndes] - plot_z_des[nIter][ndes] )
+            end
 
-## Calculating ADMM - Summary Stats #! - Yet to make change from here
-    
-                                #region->
-                                plot_μ1_des
-                                plot_μ1_diff
-                                #endregion
-    #Penalty
-        plot_Aug_terms1   = NaN*zeros(NIter)
-        plot_Aug_terms2   = NaN*zeros(NIter)
+            dual_res_diff = zeros(NS,NP-1,Nx)*NaN
+            for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
+                dual_res_diff[nS,nP,nx] =  plot_rho[nIter]* (plot_z_diff[nIter+1][nS,nP,nx] - plot_z_diff[nIter][nS,nP,nx])
+            end
+            
+            #2-Norm of residual
+            dual_Residual_Norm = (sum(dual_res_des[ndes]^2 + dual_res_diff[nS,nP,nx]^2    for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx)  )^0.5
+
+            push!(plot_dual_res_des,    dual_res_des)
+            push!(plot_dual_res_diff,   dual_res_diff)
+            push!(plot_dual_Residual_Norm,   dual_Residual_Norm)
+
+        end
+                
+        plot_dual_res_des
+        plot_dual_res_diff
+        plot_dual_Residual_Norm
+
+    #endregion
+
+    #region ->Augmented Terms
+        plot_Aug_term   = []
         for nIter in 1:NIter   
             # nIter = 2
-            plot_Aug_terms1[nIter] =  plot_μ1_des[nIter] *(plot_des1[nIter]   - plot_z_des[nIter])       + rho/2*(plot_des1[nIter]   - plot_z_des[nIter])^2   + 
-                                      plot_μ1_diff[nIter]*(plot_x1[end,nIter] - plot_z_diff[nIter])      + rho/2*(plot_x1[end,nIter] - plot_z_diff[nIter])^2
 
-            plot_Aug_terms2[nIter] =  plot_μ2_des[nIter] *(plot_des2[nIter] - plot_z_des[nIter])         + rho/2*(plot_des2[nIter] - plot_z_des[nIter])^2     + 
-                                      plot_μ2_diff[nIter]*(plot_x02[nIter]  - plot_z_diff[nIter])        + rho/2*(plot_x02[nIter]  - plot_z_diff[nIter])^2
+            Aug_term      = zeros(NS,NP)*NaN
+            Aug_term_des  = zeros(NS,NP)*NaN
+            Aug_term_diff = zeros(NS,NP)*NaN
+            for nS in 1:NS, nP in 1:NP            
+                # nS = 1; nP = 2
+
+                #Design Augmented terms
+                Aug_term_des[nS,nP]      = sum(plot_μ_des[nIter][nS,nP,ndes]*(plot_prim_res_des[nIter][nS,nP,ndes])            + rho*(plot_prim_res_des[nIter][nS,nP,ndes])^2            for ndes in 1:Ndes)
+
+                #differential augmented terms -> according to leftmost, Rightmost or Inbetween
+                if nP == 1      #*only right
+
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx)
+
+                elseif nP == NP #*Only Left
+                    
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
+
+                else            #*Right and Left
+
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx) +
+                                           sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
+
+                end
+            
+                Aug_term[nS,nP] = Aug_term_des[nS,nP] + Aug_term_diff[nS,nP]
+            
+            end
+
+            push!(plot_Aug_term, Aug_term)                 
+
         end 
 
-    #Original Objective function value
-        plot_f1_star    = NaN*zeros(NIter)
-        plot_f2_star    = NaN*zeros(NIter)
+        plot_Aug_term
+
+                #These must be undefined (because of local scopes)
+                # Aug_term
+                # Aug_term_des
+                # Aug_term_diff
+
+    #endregion
+
+    #region ->Original Objective function value
+        plot_star_f    = []
         for nIter in 1:NIter  
-            # nIter = 2 
-            plot_f1_star[nIter] = plot_Obj1[nIter] - plot_Aug_terms1[nIter] 
-            plot_f2_star[nIter] = plot_Obj2[nIter] - plot_Aug_terms2[nIter] 
-        end
-    
-    #Primal Residual
-        plot_prim_res_des = NaN*zeros(NIter)
-        plot_prim_res_diff = NaN*zeros(NIter)
-        plot_prim_res = NaN*zeros(NIter)
-        for nIter in 2:NIter
-            # nIter = 2
-            plot_prim_res_des[nIter]  = plot_des1[nIter]   - plot_z_des[nIter]
-            plot_prim_res_diff[nIter] = plot_x1[end,nIter] - plot_z_diff[nIter]
-
-            plot_prim_res[nIter] = (plot_prim_res_des[nIter]^2 + plot_prim_res_diff[nIter]^2)^0.5
-        end
-    
-    #Dual Residual
-        plot_dual_res_des = NaN*zeros(NIter)
-        plot_dual_res_diff = NaN*zeros(NIter)
-        plot_dual_res = NaN*zeros(NIter)
-        for nIter in 2:NIter
-            # nIter = 2
-            plot_dual_res_des[nIter]  = plot_rho[nIter]*(plot_z_des[nIter]  - plot_z_des[nIter-1])
-            plot_dual_res_diff[nIter] = plot_rho[nIter]*(plot_z_diff[nIter] - plot_z_diff[nIter-1])
+            # nIter = 1 
             
-            plot_dual_res[nIter] = (plot_dual_res_des[nIter]^2 + plot_dual_res_diff[nIter]^2)^0.5
-        end
-                    
-                    plot_Aug_terms1
-                    plot_Aug_terms1
-                    
-                    plot_f1_star
-                    plot_f2_star
+            star_f = zeros(NS,NP)*NaN
+            for nS in 1:NS, nP in 1:NP
+                # nS = 1; nP = 1
 
-                    plot_prim_res_des
-                    plot_prim_res_diff
-                    plot_prim_res
-                    plot_dual_res_des
-                    plot_dual_res_diff
-                    plot_dual_res
+                star_f[nS,nP] = plot_Obj[nIter][nS,nP]     -   plot_Aug_term[nIter][nS,nP] 
+            end
+            
+            push!(plot_star_f, star_f)
+        end
+
+        plot_star_f
+
+                #These must be undefined (because of local scopes)
+                # star_f
+
+    #endregion
+
+    plot_prim_res_des
+    plot_prim_res_diff_L
+    plot_prim_res_diff_R
+    plot_prim_Residual_Norm
+
+    plot_dual_res_des
+    plot_dual_res_diff
+    plot_dual_Residual_Norm
+
+    plot_Aug_term
+    
+    plot_star_f
 
 ##* Plot ADMM itreations Summary
 
@@ -579,35 +651,39 @@ display(Tot_time_in_ADMM)
     # gr()
 
     #Profiles - Differential States
-        p11 = plot(t_plot1,  plot_T_tes1[:,end], ylim = [55,70], label = "Ttes - SP1" )
-        p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70], label = "Ttes - SP2", title = "Diff state, rho = $rho" )
+    nS1, nP1 = 1,1
+    nS2, nP2 = 1,2
+
+        p11 = plot( collect(0:30),  vcat(plot_x0[end][nS1,nP1,1]*100, plot_T_tes[end][nS1,nP1,:]) ,          label = "Ttes - SP1", ylim = [55,70])
+        p11 = plot!(collect(30:60), vcat(plot_x0[end][nS2,nP2,1]*100, plot_T_tes[end][nS2,nP2,:]) ,          label = "Ttes - SP2", title = "Diff state, rho = $rho", ylim = [55,70])
 
     #Iteration Profiles - Design Variable
-        plot_Iter = collect(0:NIter)
-        p21 = plot(plot_Iter, plot_V_tes1[:],               label = "des - SP1")
-        p21 = plot!(plot_Iter, plot_V_tes2[:],              label = "des SP1")
-        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),     label = "des Centr", title = "Des var, rho = $rho" )
+    plot_Iter = collect(1:NIter)
+        p21 = plot( plot_Iter, [plot_V_tes[nIter][1]  for nIter in 1:NIter],                    label = "des - SP1")
+        p21 = plot!(plot_Iter, [plot_V_tes[nIter][2]  for nIter in 1:NIter],                    label = "des - SP2")
+        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),                                         label = "des Centr",    title = "Des var, rho = $rho" )
 
     #Primal and Dual Infeasibility
-        p31 = plot(plot_Iter, plot_prim_res,                label  = "primal infeasibility", yscale = :log10)
-        p31 = plot!(plot_Iter, plot_dual_res,               label = "dual infeasibility",    yscale = :log10, title = "Infeasibility, rho = $rho")
+        p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label  = "primal infeasibility", yscale = :log10)
+        p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",    yscale = :log10, title = "Infeasibility, rho = $rho")
 
     #Objective Function Values
-        p41 = plot(plot_Iter, plot_f1_star .+ plot_f2_star, label = "f - Distribuited")
-        p41 = plot!(plot_Iter, star_Obj.*ones(NIter),       label = "f - Central Sol'n" )
-        p41 = plot!(plot_Iter, plot_Obj1 .+ plot_Obj2,      label = "Augmented Lagrange", title = "Objective, rho = $rho")
+        p41 = plot(plot_Iter,  [ sum(plot_star_f[nIter][nS,nP]  for nS in 1:NS, nP in 1:NP) for nIter in 1:NIter] , label = "f - Distribuited")
+        p41 = plot!(plot_Iter, star_Obj.*ones(NIter),                                                               label = "f - Central Sol'n" )
+        p41 = plot!(plot_Iter, [ sum(plot_Obj[nIter][nS,nP]     for nS in 1:NS, nP in 1:NP) for nIter in 1:NIter],  label = "Augmented Lagrange", title = "Objective, rho = $rho")
     
-        p51 = plot(plot_Iter, plot_f1_star,                 label ="f1 star")
-        p51 = plot!(plot_Iter, plot_f2_star,                label ="f2 star")
-        p51 = plot!(plot_Iter, plot_Aug_terms1,             label = "f1 Aug Terms")
-        p51 = plot!(plot_Iter, plot_Aug_terms2,             label = "f2 Aug Terms", title = "SP1 objective, rho = $rho")
+        # p51 = plot(plot_Iter, plot_f1_star,                 label ="f1 star")
+        # p51 = plot!(plot_Iter, plot_f2_star,                label ="f2 star")
+        # p51 = plot!(plot_Iter, plot_Aug_terms1,             label = "f1 Aug Terms")
+        # p51 = plot!(plot_Iter, plot_Aug_terms2,             label = "f2 Aug Terms", title = "SP1 objective, rho = $rho")
 
-        p61 = plot(plot_Iter, plot_μ1_des,                  label = "μ1_des")
-        p61 = plot!(plot_Iter, plot_μ2_des,                 label = "μ2_des")
-        p61 = plot!(plot_Iter, plot_μ1_diff,                label = "μ1 diff")
-        p61 = plot!(plot_Iter, plot_μ2_diff,                label = "μ2 diff", title = "multipliers, rho = $rho")
+        p61 = plot( plot_Iter, [plot_μ_des[nIter][1,1]      for nIter in 1:NIter],              label = "μ1_des")
+        p61 = plot!(plot_Iter, [plot_μ_des[nIter][1,2]      for nIter in 1:NIter],              label = "μ2_des")
+        p61 = plot!(plot_Iter, [plot_μ_diff_R[nIter][1,1]   for nIter in 1:NIter],              label = "μ1 diff_R")
+        p61 = plot!(plot_Iter, [plot_μ_diff_L[nIter][1,2]   for nIter in 1:NIter],              label = "μ2 diff_L",    title = "multipliers, rho = $rho")
 
-        p71 = plot(plot_Iter, plot_rho,                     title = "Rho updates")
+
+        p71 = plot(plot_Iter, plot_rho[2:end],              title = "Rho updates")
 
 
 ##* Display Plots
@@ -615,7 +691,7 @@ p11
 p21
 p31
 p41
-p51
+# p51
 p61
 display(Tot_time_in_ADMM)
 
