@@ -1,88 +1,84 @@
 # using PlotlyJS
+dt = 1.0
+NCP = 3
 using Plots
 include("OCP.jl")
 
-dt = 1.0
-NCP = 3
-global N_Scen, N_Part = 1, 2
-Obj_scaling = 1.0
 
-##* Create problem Objects
-    #region-> #*Create Subproblem 1
-    T01 = 0.0
-    Tf1 = 30.0
-    t_plot1 = collect(T01:dt:Tf1) 
-    Q_whb1 = vcat(1.2*ones(10,1), 1.0*ones(10,1), 0.8*ones(10,1)) *1.2539999996092727e6
-    
-    P1 = Build_OCP(Q_whb1, Tf1 - T01 , (1,1))
+global NS, NP = 1, 2
+Obj_scaling = 1e0
 
-    # Naming variables to access solution
-    des1     = getindex(P1, :des)    
-    x1       = getindex(P1, :x)
-    x01      = getindex(P1, :x0)
-    u1       = getindex(P1, :u)
+##* Create Model Objects
+    Tf = 60
+    NFE = convert(Int32, (Tf - 0)/dt)
 
-    V_tes1   = getindex(P1, :V_tes)
-    T_tes1   = getindex(P1, :T_tes)
-    T_b1     = getindex(P1, :T_tes)
-    T_phb1   = getindex(P1, :T_phb)
-    T_whb1   = getindex(P1, :T_whb)
-    α1       = getindex(P1, :α)
-    Q_phb1   = getindex(P1, :Q_phb)
- 
-    #endregion
+    #make Profiles
+    plot_t = collect(0: dt: Tf)
+    Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
 
-    #region-> #*Create Subproblem 2
-    T02 = 30.0
-    Tf2 = 60.0
-    t_plot2 = collect(T02:dt:Tf2) 
-    Q_whb2 = vcat(1.3*ones(10,1), 1.0*ones(10,1), 0.7*ones(10,1)) *1.2539999996092727e6 #todo - make into generic array or something similar
+    #Make central Problem 
+    Centr = Build_OCP(Q_whb, plot_t[end] - plot_t[1] , (1,1))
 
-    P2 = Build_OCP(Q_whb2, Tf2 - T02, (1,2))
+        #region -> #*make Dictionary of Subproblem Models
+            SP = Dict()
+            SP_len = convert(Int32,size(Q_whb)[2]/ NP)
+            for nS in 1:NS, nP in 1:NP
+            # nS = 1
+            # nP = 3
+                Q_whb_nS_nP = Q_whb[nS, SP_len*(nP-1)+1 : SP_len*(nP) ] 
+                t_nS_nP = plot_t[SP_len*(nP-1)+1 : SP_len*(nP)+1 ] 
 
-    # Naming variables to access solution
-    des2    = getindex(P2, :des)    
-    x2      = getindex(P2, :x)
-    x02     = getindex(P2, :x0)
-    u2      = getindex(P2, :u)
+                SP[(nS,nP)] = Build_OCP(Q_whb_nS_nP, t_nS_nP[end] - t_nS_nP[1] , (nS,nP))
+            end
+                            SP
+                            SP[(1,1)]
+                            SP[(1,2)]
+                            # SP[(1,3)]
+        #endregion
 
-    V_tes2  = getindex(P2, :V_tes)
-    T_tes2  = getindex(P2, :T_tes)
-    T_b2    = getindex(P2, :T_tes)
-    T_phb2  = getindex(P2, :T_phb)
-    T_whb2  = getindex(P2, :T_whb)
-    α2      = getindex(P2, :α)
-    Q_phb2  = getindex(P2, :Q_phb)
+        #region-> #*Create Named references
 
-    #endregion
+        #Subproblems
+            SP_des  = Dict()
+            SP_x    = Dict()
+            SP_x0   = Dict()
+            SP_u    = Dict()
 
-    #region-> #* Create Central Problem
-    T0 = T01
-    Tf = Tf2
+            SP_V_tes = Dict()
+            SP_T_tes = Dict()
+            for nS in 1:NS, nP in 1:NP
+            # nS = 1
+            # nP = 1
+                #Scaled variables
+                SP_des[(nS,nP)] = getindex(SP[(nS,nP)], :des) 
+                SP_x[(nS,nP)]   = getindex(SP[(nS,nP)], :x)
+                SP_x0[(nS,nP)]  = getindex(SP[(nS,nP)], :x0)
+                SP_u[(nS,nP)]   = getindex(SP[(nS,nP)], :u)
 
-    Q_whb = vcat(Q_whb1, Q_whb2)
+                #unscaled variables
+                SP_V_tes[(nS,nP)]   = getindex(SP[(nS,nP)], :V_tes)
+                SP_T_tes[(nS,nP)]   = getindex(SP[(nS,nP)], :T_tes)[:,end]
+            end
+                            
+                            SP_des[(1,1)][1]
+                            SP_x[(1,1)][1,end,end] 
 
-    t_plot = collect(T0:dt:Tf) 
+        #Central Solver
+                #Scaled variables
+                Centr_des = getindex(Centr, :des) 
+                Centr_x   = getindex(Centr, :x)
+                Centr_x0  = getindex(Centr, :x0)
+                Centr_u   = getindex(Centr, :u)
+        
+                #unscaled variables
+                Centr_V_tes   = getindex(Centr, :V_tes)
+                Centr_T_tes   = getindex(Centr, :T_tes)[:,end]
 
-    Centr = Build_OCP(Q_whb, Tf - T0, (1,1))
-    # Naming variables to access solution
-    des     = getindex(Centr, :des)    
-    x       = getindex(Centr, :x)
-    x0      = getindex(Centr, :x0)
-    u       = getindex(Centr, :u) 
-    
-    V_tes   = getindex(Centr, :V_tes)
-    T_tes   = getindex(Centr, :T_tes)
-    T_b     = getindex(Centr, :T_tes)
-    T_phb   = getindex(Centr, :T_phb)
-    T_whb   = getindex(Centr, :T_whb)
-    α       = getindex(Centr, :α)
-    Q_phb   = getindex(Centr, :Q_phb)
-    #endregion
+        #endregion
 
-##* Solve Central Problem
-    
-    @NLobjective(Centr, Min, Obj_scaling*(sum( u[2,nfe] for nfe in 1:60 ) + 0.1*(des[1])^2) )  #todo- generalize
+##* Solve Central Problem)
+
+    @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe] for nfe in 1:Tf ) + 0.1*(Centr_des[1])^2) )
 
     optimize!(Centr)
     JuMP.termination_status(Centr)
@@ -90,224 +86,429 @@ Obj_scaling = 1.0
     star_Obj = JuMP.objective_value(Centr)
 
     #extract solution to Julia variables
-    star_x0 = JuMP.value.(x0) 
+    star_x0 = JuMP.value.(Centr_x0) 
     star_x0_us = star_x0            .*  (100 - 0) .+ 0
 
-    star_V_tes = JuMP.value(V_tes)
-    star_T_tes = JuMP.value.(T_tes[:,NCP])
+    star_V_tes = JuMP.value(Centr_V_tes)
+    star_T_tes = JuMP.value.(Centr_T_tes)
                  star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
-    star_T_b    = JuMP.value.(T_b[:, NCP])
-    star_T_phb  = JuMP.value.(T_phb[:, NCP])
-    star_T_whb  = JuMP.value.(T_whb[:, NCP])
-
-    star_α      = JuMP.value.(α[:])
-    star_Q_phb  = JuMP.value.(Q_phb[:])
-
-
+    
     #plot Central solution
     plotly()
-    plot(t_plot, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
+    plot(plot_t, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
+
+    println("Central Solution is $star_V_tes")
 
 ##* Solve subproblems using ADMM
-rho = 2.0 
+rho = 2.0*Obj_scaling
 
 z_des_us = [100.0]
-z_diff_us = [60.0]
+z_diff_us = [58.0]
 
-    z_des  = (z_des_us - ls_des) ./ (us_des - ls_des)
-    z_diff = (z_diff_us - ls_x)  ./ (us_x   - ls_x  )
+    z_des = NaN.*zeros(Ndes)
+    z_diff = NaN.*zeros(NS, NP-1, Nx)
+    for ndes in 1:Ndes, nx in 1:Nx
+        z_des[ndes]         = (z_des_us[ndes] - ls_des[ndes]) / (us_des[ndes] - ls_des[ndes])
+        z_diff[:, :, nx]   .= (z_diff_us[nx]  - ls_x[nx])     / (us_x[nx]     - ls_x[nx]  )
+    end
 
-μ1_des   = 0.0.*z_des
-μ1_diff  = 0.0.*z_diff
+    μ_des    = zeros(NS, NP, Ndes)
+    μ_diff_L = zeros(NS, NP, Nx)
+    μ_diff_R = zeros(NS, NP, Nx)
 
-    μ2_des  = 0.0.*z_des
-    μ2_diff = 0.0.*z_diff
+    #region-> Initializing arrays for Plotting
+        plot_rho = []
+        plot_z_des  = []
+        plot_z_diff = []
 
-    #region-> declaring arrays for Plotting
-    plot_rho = copy([rho])
+        #scaled variables
+        plot_Obj = []
+        plot_des = []
+        plot_x = []
+        plot_x0 = []
+        plot_u = []
 
-    plot_z_des  = copy(z_des)
-    plot_z_diff = copy(z_diff)
+        #Unscaled Variables
+        plot_V_tes = []
+        plot_T_tes = []
 
-    plot_des1 = copy(z_des)
-    plot_x1 = NaN*t_plot1[2:end]
-    plot_x01 = copy(z_diff)
-    plot_μ1_des = copy(μ1_des)
-    plot_μ1_diff = copy(μ1_diff)
-    plot_Obj1 = [NaN]
+        #Multipliers
+        plot_μ_des = []
+        plot_μ_diff_L = []
+        plot_μ_diff_R = []
         
-        plot_des2 = copy(z_des)
-        plot_x2 = NaN*t_plot2[2:end]
-        plot_x02 = copy(z_diff)
-        plot_μ2_des = copy(μ2_des)
-        plot_μ2_diff = copy(μ2_diff)
-        plot_Obj2 = [NaN]
+        push!(plot_rho, rho)
+        push!(plot_z_des,  copy(z_des) )
+        push!(plot_z_diff, copy(z_diff))
 
-    plot_V_tes1 = copy(z_des_us)
-    plot_T_tes1 = NaN*t_plot1
-
-        plot_V_tes2 = copy(z_des_us)
-        plot_T_tes2 = NaN*t_plot2
     #endregion
 
 ##* ADMM Iterations
-NIter = 50
-Tot_time_in_ADMM = @elapsed for ADMM_k = 2:NIter
+NIter = 20
+Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
     #ADMM values
     global rho
-    global plot_rho
     global z_des, z_diff
-    global μ1_des, μ2_des
-    global μ1_diff,μ2_diff
-        #Plotting - scaled
-        global plot_z_des, plot_z_diff
-        global plot_des1, plot_des2
-        global plot_x01, plot_x02
-        global plot_x1, plot_x2
-        global plot_μ1_des, plot_μ2_des
-        global plot_μ1_diff, plot_μ2_diff
-        global plot_Obj1, plot_Obj2
-        #Plotting - Unscaled
-        global plot_V_tes1, plot_V_tes2
-        global plot_T_tes1, plot_T_tes2
+    global μ_des, μ_diff_L, μ_diff_R
     
-    #region-> #*Solve SP 1
-    
-    @NLobjective(P1, Min, Obj_scaling*(sum( u1[2,nfe] for nfe in 1:30 ) + 0.05*(des1[1])^2)     + μ1_des[1]*   (des1[1] - z_des[1])                + rho/2*(des1[1] - z_des[1])^2  
-                                                                                                + μ1_diff[1]*  (x1[1, end, end] - z_diff[1])       + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
-    
-    optimize!(P1)
-    JuMP.termination_status(P1)
-    JuMP.solve_time(P1::Model)
-    star_Obj1 = JuMP.objective_value(P1)
-        
-    ## extract solution to Julia variables
-        #scaled values
-        star_des1 = JuMP.value.(des1)
-        star_x01 = JuMP.value.(x01) 
-        star_x1 = JuMP.value.(x1)[:,:,NCP]
-        
-        #unscaled values
-        star_x01_us = star_x01            .*  (100 - 0) .+ 0
-        star_V_tes1 = JuMP.value(V_tes1)
-        star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
-                    star_T_tes1 = cat(star_x01_us[1], star_T_tes1, dims = 1)     
-        star_T_b1    = JuMP.value.(T_b1[:, NCP])
-        star_T_phb1  = JuMP.value.(T_phb1[:, NCP])
-        star_T_whb1  = JuMP.value.(T_whb1[:, NCP])
+    #region-> #*Solve all partition problems
+        star_SP_Obj = zeros(NS, NP)*NaN
+        star_SP_des = zeros(NS, NP, Ndes)*NaN
+        star_SP_x0  = zeros(NS, NP, Nx)*NaN
+        star_SP_x   = zeros(NS, NP, Nx, convert(Int32,NFE/NP))*NaN
+        star_SP_u   = zeros(NS, NP, Nu, convert(Int32,NFE/NP))*NaN
 
-        star_α1      = JuMP.value.(α1[:])
-        star_Q_phb1  = JuMP.value.(Q_phb1[:])
+        star_SP_V_tes = zeros(NS, NP)
+        star_SP_T_tes = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
+
+        for nS in 1:NS, nP in 1:NP
+                
+            if nP == 1          #* First Partition
+                # nS = 1 
+                # nP = 1
+                @NLobjective(SP[(nS,nP)], Min,  
+                                
+                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])        + rho*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
+                                
+                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])   + rho*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2        for nx in 1:Nx) 
+                            )
+                
+            elseif nP == NP     #* Last Partition
+                # nS = 1 
+                # nP = 3
+                @NLobjective(SP[(nS,nP)], Min,  
+                                
+                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])          + rho*(SP_des[(nS,nP)][ndes]    - z_des[ndes])^2            for ndes in 1:Ndes)
+                                
+                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]    - z_diff[nS,nP-1,nx])   + rho*(SP_x0[(nS,nP)][nx]       - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                            )
+
+            else                #* Between Partitions
+                # nS = 1 
+                # nP = 2
+                @NLobjective(SP[(nS,nP)], Min,  
+                                
+                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
+                                
+                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]        - z_diff[nS,nP-1,nx])   + rho*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                                
+                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2       for nx in 1:Nx) 
+                            )
+                
+            end
+            
+            #solve problem
+            optimize!(SP[(nS,nP)])
+            JuMP.termination_status(SP[(nS,nP)])
+            JuMP.solve_time(SP[(nS,nP)]::Model)
+            star_SP_Obj[nS,nP] = JuMP.objective_value(SP[(nS,nP)])
+
+            #solution from SP
+            star_SP_des[nS, nP, :]  = JuMP.value.(SP_des[(nS,nP)])
+            star_SP_x0[nS, nP, :]   = JuMP.value.(SP_x0[(nS,nP)])
+            star_SP_x[nS, nP, :, :] = JuMP.value.(SP_x[(nS,nP)])[:,:,NCP]
+            star_SP_u[nS, nP, :, :] = JuMP.value.(SP_u[(nS,nP)])
+        
+            star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
+            star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
+            
+        end
+    #endregion
+    star_SP_Obj
+    star_SP_des
+    star_SP_x0
+    star_SP_x
+    star_SP_u
+
+    star_SP_V_tes
+    star_SP_T_tes
+    #region->Oldcode
+
+        # @NLobjective(P1, Min, Obj_scaling*(sum( u1[2,nfe] for nfe in 1:20 ) + 0.1/3*(des1[1])^2)     + μ1_des[1]*   (des1[1] - z_des[1])            + rho/2*(des1[1] - z_des[1])^2  
+        #                                                                                              + μ1_diff[1]*  (x1[1, end, end] - z_diff[1])   + rho/2*(x1[1, end, end] - z_diff[1])^2  )     #todo- generalize
+        
+        # optimize!(P1)
+        # JuMP.termination_status(P1)
+        # JuMP.solve_time(P1::Model)
+        # star_Obj1 = JuMP.objective_value(P1)
+            
+        # ## extract solution to Julia variables
+        #     #scaled values
+        #     star_des1 = JuMP.value.(des1)
+        #     star_x01 = JuMP.value.(x01) 
+        #     star_x1 = JuMP.value.(x1)[:,:,NCP]
+            
+        #     #unscaled values
+        #     star_x01_us = star_x01            .*  (100 - 0) .+ 0
+        #     star_V_tes1 = JuMP.value(V_tes1)
+        #     star_T_tes1 = JuMP.value.(T_tes1[:,NCP])
+        #                 star_T_tes1 = cat(star_x01_us[1], star_T_tes1, dims = 1)     
+        #     star_T_b1    = JuMP.value.(T_b1[:, NCP])
+        #     star_T_phb1  = JuMP.value.(T_phb1[:, NCP])
+        #     star_T_whb1  = JuMP.value.(T_whb1[:, NCP])
+
+        #     star_α1      = JuMP.value.(α1[:])
+        #     star_Q_phb1  = JuMP.value.(Q_phb1[:])
+
+        # ##Solve SP2 
+
+        # @NLobjective(P2, Min, Obj_scaling*(sum( u2[2,nfe] for nfe in 1:20 ) + 0.1/3*(des2[1])^2)    + μ2_des[1] *  (des2[1] - z_des[1])             + rho/2*(des2[1] - z_des[1])^2  
+                                                                                                    
+        #                                                                                             + μ2_diff[1]*  (x02[1]  - z_diff[1])            + rho/2*(x02[1] - z_diff[1])^2  
+        #                                                                                             + μ2_diff[2]*  (x2[1, end, end]  - z_diff[2])   + rho/2*(x2[1, end, end]  - z_diff[2])^2 )   #?1st element linked here i.e. x0
+
+        # optimize!(P2)
+        # JuMP.termination_status(P2)
+        # JuMP.solve_time(P2::Model)
+        # star_Obj2 = JuMP.objective_value(P2)
+
+        # ## extract solution to Julia variables
+        #     #scaled values
+        #     star_des2 = JuMP.value.(des2)
+        #     star_x02 = JuMP.value.(x02) 
+        #     star_x2 = JuMP.value.(x2)[:,:,NCP]
+            
+        #     #unscaled Values
+        #     star_x02_us = star_x02            .*  (100.0 - 0.0) .+ 0.0         
+        #     star_V_tes2 = JuMP.value(V_tes2)
+        #     star_T_tes2 = JuMP.value.(T_tes2[:,NCP])
+        #                 star_T_tes2 = cat(star_x02_us[1], star_T_tes2, dims = 1)     
+        #     star_T_b2    = JuMP.value.(T_b2[:, NCP])
+        #     star_T_phb2  = JuMP.value.(T_phb2[:, NCP])
+        #     star_T_whb2  = JuMP.value.(T_whb2[:, NCP])
+
+        #     star_α2      = JuMP.value.(α2[:])
+        #     star_Q_phb2  = JuMP.value.(Q_phb2[:])
     #endregion
 
-    #region-> #*Solve SP2 
-
-    @NLobjective(P2, Min, Obj_scaling*(sum( u2[2,nfe] for nfe in 1:30 ) + 0.05*(des2[1])^2)     + μ2_des[1] *  (des2[1] - z_des[1])                + rho/2*(des2[1] - z_des[1])^2  
-                                                                                                + μ2_diff[1]*  (x02[1]  - z_diff[1])               + rho/2*(x02[1] - z_diff[1])^2  )   #?1st element linked here i.e. x0
-
-    optimize!(P2)
-    JuMP.termination_status(P2)
-    JuMP.solve_time(P2::Model)
-    star_Obj2 = JuMP.objective_value(P2)
-
-    ## extract solution to Julia variables
-        #scaled values
-        star_des2 = JuMP.value.(des2)
-        star_x02 = JuMP.value.(x02) 
-        star_x2 = JuMP.value.(x2)[:,:,NCP]
-        
-        #unscaled Values
-        star_x02_us = star_x02            .*  (100.0 - 0.0) .+ 0.0          #todo - scaling to be made automatic
-        star_V_tes2 = JuMP.value(V_tes2)
-        star_T_tes2 = JuMP.value.(T_tes2[:,NCP])
-                    star_T_tes2 = cat(star_x02_us[1], star_T_tes2, dims = 1)     
-        star_T_b2    = JuMP.value.(T_b2[:, NCP])
-        star_T_phb2  = JuMP.value.(T_phb2[:, NCP])
-        star_T_whb2  = JuMP.value.(T_whb2[:, NCP])
-
-        star_α2      = JuMP.value.(α2[:])
-        star_Q_phb2  = JuMP.value.(Q_phb2[:])
-    #endregion
-
+ 
     #* ADMM Updates
-    z_des[1]    = (star_des1[1] + star_des2[1])/2
-    z_diff[1]   = (star_x1[1, end, end] + star_x02[1])/2
+    #region ->#*z-Updates  
+        #Design
+        for ndes in 1:Ndes
+            # ndes = 1
+            z_des[ndes] = sum(star_SP_des[nS, nP, ndes] for nS in 1:NS, nP in 1:NP )/(NS*NP)
 
+        end
 
-    μ1_des[1] = μ1_des[1] + rho*(star_des1[1] - z_des[1])
-    μ2_des[1] = μ2_des[1] + rho*(star_des2[1] - z_des[1])
+        #Differential
+        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
+        # nS = 1
+        # nP = 1
+        # nx = 1
+            z_diff[nS,nP,nx] = (star_SP_x[nS, nP, nx, end]  +   star_SP_x0[nS, nP, nx] )/2   
+        end
+        
+    z_des
+    z_diff
+    #endregion
 
-    μ1_diff[1] = μ1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
-    μ2_diff[1] = μ2_diff[1] + rho*(star_x02[1]            - z_diff[1])
+    #region ->#*Primal Residuals
+        #Design
+        prim_res_des    = zeros(NS, NP, Ndes)
+        for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
+            prim_res_des[nS, nP, ndes] = star_SP_des[nS, nP, ndes] - z_des[ndes]
+        end
+        
+        #Differential
+        prim_res_diff_L = zeros(NS, NP, Nx)
+        prim_res_diff_R = zeros(NS, NP, Nx)
+        for nS in 1:NS, nP in 1:NP, nx in 1:Nx
+        # nS = 1; nP = 3; nx = 1
+            if nP >= 2 #No left for 1st paertition
+                prim_res_diff_L[nS, nP, nx] = star_SP_x0[nS, nP, nx] - z_diff[nS,nP-1,nx]
+            end
 
-    prim_res_des  = star_des1[1]  - z_des[1] 
-    prim_res_diff = star_x1[1, end, end] - z_diff[1]
-    prim_res =  (prim_res_des[1]^2 + prim_res_diff[1]^2)^0.5
-
-    dual_res_des  = rho*(z_des[1]  - plot_z_des[end])
-    dual_res_diff = rho*(z_diff[1] - plot_z_diff[end])
-    dual_res = (dual_res_des[1]^2 + dual_res_diff[1]^2)^0.5
-
-    ##* rho update heuristic
-    # if prim_res > 10*dual_res
-    #     rho = rho*2
-    # elseif dual_res > 10*prim_res
-    #     rho = rho/2
-    # else
-    # end
-    
-    append!(plot_rho, rho)
-
-        #region-> #*Storing in Plots
+            if nP <= NP - 1 #No right for Last
+                prim_res_diff_R[nS, nP, nx] = star_SP_x[nS, nP, nx, end] - z_diff[nS, nP, nx]
+            end
+        end
             
-            #scaled values
-            append!(plot_z_des, z_des)
-            append!(plot_z_diff, z_diff)
+        prim_res_des
+        prim_res_diff_L
+        prim_res_diff_R
+    #endregion
+    prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2  for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes, nx in 1:Nx ) )^0.5
+
+    #region ->#*Dual Residuals
+        #Design
+        dual_res_des = zeros(Ndes)
+        for ndes in 1:Ndes
+            dual_res_des[ndes]  = rho*(z_des[ndes]  - plot_z_des[end][ndes] )
+        end
+
+        #Differential
+        dual_res_diff = zeros(NS, NP-1, Nx)
+        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx 
+            dual_res_diff[nS, nP, nx] = rho*(  z_diff[nS, nP, nx]- plot_z_diff[end][nS, nP, nx] )
+        end
+
+        dual_res_des
+        dual_res_diff
+    #endregion
+    dual_Residual_Norm = ( sum(dual_res_des[ndes]^2 + dual_res_diff[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
+
+    #region - Oldcode
+        # prim_res_des = NaN*zeros(1,3)
+        #     prim_res_des[1,1]  = star_des1[1]  - z_des[1]
+        #     prim_res_des[1,2]  = star_des2[1]  - z_des[1]
+        #     prim_res_des[1,3]  = star_des3[1]  - z_des[1]
             
-            append!(plot_des1, star_des1)
-            append!(plot_x01, star_x01)
-            plot_x1 = cat(plot_x1, transpose(star_x1), dims = 2)
-            append!(plot_μ1_des, μ1_des)
-            append!(plot_μ1_diff, μ1_diff)
-            append!(plot_Obj1, star_Obj1)
+        
+        # prim_res_diff = zeros(1,3,2)  #Dimension NS X NP X NEnd
+        #     prim_res_diff[1,1,2] = star_x1[1, end, end] - z_diff[1]
+        #     prim_res_diff[1,2,1] = star_x02[1]          - z_diff[1]
 
-                append!(plot_des2, star_des2)
-                append!(plot_x02, star_x02)
-                plot_x2 = cat(plot_x2, transpose(star_x2), dims = 2)
-                append!(plot_μ2_des, μ2_des)
-                append!(plot_μ2_diff, μ2_diff)
-                append!(plot_Obj2, star_Obj2)
+        #     prim_res_diff[1,2,2] = star_x2[1, end, end] - z_diff[2]
+        #     prim_res_diff[1,3,1] = star_x03[1]          - z_diff[2]
 
-            #Unscaled values
-            append!(plot_V_tes1, star_V_tes1)
-            plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
+        # prim_res =  (sum(prim_res_des[1,nP]^2 for nP in 1:3) + sum( prim_res_diff[1,nP,nEnd]^2 for nP in 1:3, nEnd in 1:2) )^0.5
 
-                append!(plot_V_tes2, star_V_tes2)
-                plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
+        # dual_res_des  = rho*(z_des[1]  - plot_z_des[end])
+        # dual_res_diff = rho*(z_diff[1] - plot_z_diff[end])
+        # dual_res = (dual_res_des[1]^2 + dual_res_diff[1]^2)^0.5
 
-        #endregion
+        # μ1_des[1] = μ1_des[1] + rho*(star_des1[1] - z_des[1])
+        # μ2_des[1] = μ2_des[1] + rho*(star_des2[1] - z_des[1])
+        # μ3_des[1] = μ3_des[1] + rho*(star_des3[1] - z_des[1])
 
-        #region-> #*Warm Starting
 
-            # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
-            # set_start_value(des1[ndes],                star_des1[ndes])
-            # set_start_value(x01[nx],                   star_x01[nx])
-            # set_start_value(x1[nx, nfe, ncp],          star_x1[nx, nfe])
-            # # set_start_value(z1[nz, nfe, ncp],          z_guess[nz])
-            # # set_start_value(u1[nu, nfe],               u_guess[nu])
+        # μ1_diff[1] = μ1_diff[1] + rho*(star_x1[1, end, end]   - z_diff[1])
+        # μ2_diff[1] = μ2_diff[1] + rho*(star_x02[1]            - z_diff[1])
+        # μ2_diff[2] = μ2_diff[2] + rho*(star_x2[1, end, end]   - z_diff[2])
+        # μ3_diff[1] = μ3_diff[1] + rho*(star_x03[1]            - z_diff[2])
 
-            #         set_start_value(des2[ndes],                star_des2[ndes])
-            #         set_start_value(x02[nx],                   star_x02[nx])
-            #         set_start_value(x2[nx, nfe, ncp],          star_x2[nx, nfe])
-            #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
-            #         # set_start_value(u2[nu, nfe],               u_guess[nu])
-            # end
+        
+            #Storing in Plots
+                
+                # #scaled values
+                # append!(plot_z_des, z_des)
+                # append!(plot_z_diff, z_diff)
+                
+                # append!(plot_des1, star_des1)
+                # append!(plot_x01, star_x01)
+                # plot_x1 = cat(plot_x1, transpose(star_x1), dims = 2)
+                # append!(plot_μ1_des, μ1_des)
+                # append!(plot_μ1_diff, μ1_diff)
+                # append!(plot_Obj1, star_Obj1)
 
-        #endregion
+                #     append!(plot_des2, star_des2)
+                #     append!(plot_x02, star_x02)
+                #     plot_x2 = cat(plot_x2, transpose(star_x2), dims = 2)
+                #     append!(plot_μ2_des, μ2_des)
+                #     append!(plot_μ2_diff, μ2_diff)
+                #     append!(plot_Obj2, star_Obj2)
+
+                # #Unscaled values
+                # append!(plot_V_tes1, star_V_tes1)
+                # plot_T_tes1 = cat(plot_T_tes1, star_T_tes1, dims = 2)
+
+                #     append!(plot_V_tes2, star_V_tes2)
+                #     plot_T_tes2 = cat(plot_T_tes2, star_T_tes2, dims = 2)
+
+
+    #endregion
+
+    #region ->#*μ Update
+        for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
+            μ_des[nS,nP,ndes] = μ_des[nS,nP,ndes] + rho*(prim_res_des[nS,nP,ndes])
+        end
+
+        for nS in 1:NS, nP in 1:NP, nx in 1:Nx
+            μ_diff_L[nS,nP,nx] =  μ_diff_L[nS,nP,nx] + rho*(prim_res_diff_L[nS,nP,nx])
+            μ_diff_R[nS,nP,nx] =  μ_diff_R[nS,nP,nx] + rho*(prim_res_diff_R[nS,nP,nx])
+        end
+
+    #endregion
+
+    #region ->#* rho update heuristic
+        # if prim_res > 10*dual_res
+        #     rho = rho*2
+        # elseif dual_res > 10*prim_res
+        #     rho = rho/2
+        # else
+        # end
+    #endregion
+
+    #region ->#* Appending for Plotting
+
+        push!(plot_rho,       rho)
+        push!(plot_z_des,     copy(z_des) )
+        push!(plot_z_diff,    copy(z_diff))
+
+        push!(plot_Obj,       star_SP_Obj)
+        push!(plot_des,       star_SP_des)
+        push!(plot_x,         star_SP_x)
+        push!(plot_x0,        star_SP_x0)
+
+        push!(plot_μ_des,     μ_des)
+        push!(plot_μ_diff_L,  μ_diff_L)
+        push!(plot_μ_diff_R,  μ_diff_R)
+
+        push!(plot_V_tes,     star_SP_V_tes)
+        push!(plot_T_tes,     star_SP_T_tes)
+    #endregion
+
+    #region-> #*Warm Starting
+
+        # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
+        # set_start_value(des1[ndes],                star_des1[ndes])
+        # set_start_value(x01[nx],                   star_x01[nx])
+        # set_start_value(x1[nx, nfe, ncp],          star_x1[nx, nfe])
+        # # set_start_value(z1[nz, nfe, ncp],          z_guess[nz])
+        # # set_start_value(u1[nu, nfe],               u_guess[nu])
+
+        #         set_start_value(des2[ndes],                star_des2[ndes])
+        #         set_start_value(x02[nx],                   star_x02[nx])
+        #         set_start_value(x2[nx, nfe, ncp],          star_x2[nx, nfe])
+        #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
+        #         # set_start_value(u2[nu, nfe],               u_guess[nu])
+        # end
+
+    #endregion
 
 end
-plot_rho
-##* Calculating ADMM - Summary Stats #todo - add here
+
+##*Temp Display 
+    plot_rho
+    plot_z_des
+    plot_z_diff
+
+    plot_Obj
+    plot_des
+    plot_x
+    plot_x0
+
+    plot_μ_des
+    plot_μ_diff_L
+    plot_μ_diff_R
+
+    plot_V_tes
+    plot_T_tes
+
+
+
+    plot_Iter = collect(1:NIter)
+
+    p11 = plot( plot_Iter, [plot_V_tes[nIter][1]  for nIter in 1:NIter])
+    p11 = plot!(plot_Iter, [plot_V_tes[nIter][2]  for nIter in 1:NIter])
+    p11 = plot!(plot_Iter, [plot_V_tes[nIter][3]  for nIter in 1:NIter])
+    p11 = plot!(plot_Iter, star_V_tes.*ones(NIter),                             label = "des Centr", title = "Des var, rho = $rho" )
+
+## 
+
+p11
+display(Tot_time_in_ADMM)
+ 
+
+
+## Calculating ADMM - Summary Stats #! - Yet to make change from here
     
                                 #region->
                                 plot_μ1_des
@@ -382,7 +583,7 @@ plot_rho
         p11 = plot!(t_plot2, plot_T_tes2[:,end], ylim = [55,70], label = "Ttes - SP2", title = "Diff state, rho = $rho" )
 
     #Iteration Profiles - Design Variable
-        plot_Iter = collect(0:NIter-1)
+        plot_Iter = collect(0:NIter)
         p21 = plot(plot_Iter, plot_V_tes1[:],               label = "des - SP1")
         p21 = plot!(plot_Iter, plot_V_tes2[:],              label = "des SP1")
         p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),     label = "des Centr", title = "Des var, rho = $rho" )
@@ -407,6 +608,8 @@ plot_rho
         p61 = plot!(plot_Iter, plot_μ2_diff,                label = "μ2 diff", title = "multipliers, rho = $rho")
 
         p71 = plot(plot_Iter, plot_rho,                     title = "Rho updates")
+
+
 ##* Display Plots
 p11
 p21

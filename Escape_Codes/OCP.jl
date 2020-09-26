@@ -135,9 +135,11 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         #endregion
                         
                         # @variable(model1, z_ADMM)
-                        # fix(z_ADMM, 60.0)
                         if np == 1
-                              fix(x0[1], x_guess[1])
+                              for nx in 1:Nx
+                                    fix(x0[nx], x_guess[nx], force = true)
+                        
+                              end
                         end
 
 
