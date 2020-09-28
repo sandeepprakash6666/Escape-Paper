@@ -5,7 +5,7 @@ using Plots
 include("OCP.jl")
 
 
-global NS, NP = 1, 2
+global NS, NP = 1, 3
 Obj_scaling = 1e0
 
 ##* Create Model Objects
@@ -14,7 +14,7 @@ Obj_scaling = 1e0
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
+    Q_whb = hcat(1.0*ones(1,10), 1.2*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
 
     #Make central Problem 
     Centr = Build_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , (1,1))
@@ -102,52 +102,53 @@ Obj_scaling = 1e0
     plot(plot_t_centr, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
 
 ##* Solve subproblems using ADMM
-rho = 2.0*Obj_scaling
 
-z_des_us = [100.0]
-z_diff_us = [60.0]
+    rho = 2.0*Obj_scaling
 
-    z_des = NaN.*zeros(Ndes)
-    z_diff = NaN.*zeros(NS, NP-1, Nx)
-    for ndes in 1:Ndes, nx in 1:Nx
-        z_des[ndes]         = (z_des_us[ndes] - ls_des[ndes]) / (us_des[ndes] - ls_des[ndes])
-        z_diff[:, :, nx]   .= (z_diff_us[nx]  - ls_x[nx])     / (us_x[nx]     - ls_x[nx]  )
-    end
+    z_des_us = [100.0]
+    z_diff_us = [60.0]
 
-    μ_des    = zeros(NS, NP, Ndes)
-    μ_diff_L = zeros(NS, NP, Nx)
-    μ_diff_R = zeros(NS, NP, Nx)
+        z_des = NaN.*zeros(Ndes)
+        z_diff = NaN.*zeros(NS, NP-1, Nx)
+        for ndes in 1:Ndes, nx in 1:Nx
+            z_des[ndes]         = (z_des_us[ndes] - ls_des[ndes]) / (us_des[ndes] - ls_des[ndes])
+            z_diff[:, :, nx]   .= (z_diff_us[nx]  - ls_x[nx])     / (us_x[nx]     - ls_x[nx]  )
+        end
 
-    #region-> Initializing arrays for Plotting
-        plot_rho = []
-        plot_z_des  = []
-        plot_z_diff = []
+        μ_des    = zeros(NS, NP, Ndes)
+        μ_diff_L = zeros(NS, NP, Nx)
+        μ_diff_R = zeros(NS, NP, Nx)
 
-        #scaled variables
-        plot_Obj = []
-        plot_des = []
-        plot_x = []
-        plot_x0 = []
-        plot_u = []
+        #region-> Initializing arrays for Plotting
+            plot_rho = []
+            plot_z_des  = []
+            plot_z_diff = []
 
-        #Unscaled Variables
-        plot_V_tes = []
-        plot_T_tes = []
+            #scaled variables
+            plot_Obj = []
+            plot_des = []
+            plot_x = []
+            plot_x0 = []
+            plot_u = []
 
-        #Multipliers
-        plot_μ_des = []
-        plot_μ_diff_L = []
-        plot_μ_diff_R = []
-        
-        push!(plot_rho, rho)
-        push!(plot_z_des,  copy(z_des) )
-        push!(plot_z_diff, copy(z_diff))
+            #Unscaled Variables
+            plot_V_tes = []
+            plot_T_tes = []
 
-    #endregion
+            #Multipliers
+            plot_μ_des = []
+            plot_μ_diff_L = []
+            plot_μ_diff_R = []
+            
+            push!(plot_rho, rho)
+            push!(plot_z_des,  copy(z_des) )
+            push!(plot_z_diff, copy(z_diff))
+
+        #endregion
 
 ##* ADMM Iterations
 
-NIter = 50
+NIter = 150
 Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
     #ADMM values
     global rho
@@ -173,9 +174,9 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
                                 
                                 Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                 
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])        + rho*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])        + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
                                 
-                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])   + rho*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2        for nx in 1:Nx) 
+                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])   + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2        for nx in 1:Nx) 
                             )
                 
             elseif nP == NP     #* Last Partition
@@ -185,9 +186,9 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
                                 
                                 Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                 
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])            + rho*(SP_des[(nS,nP)][ndes]    - z_des[ndes])^2            for ndes in 1:Ndes)
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])            + rho/2*(SP_des[(nS,nP)][ndes]    - z_des[ndes])^2            for ndes in 1:Ndes)
                                 
-                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]    - z_diff[nS,nP-1,nx])     + rho*(SP_x0[(nS,nP)][nx]       - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]    - z_diff[nS,nP-1,nx])     + rho/2*(SP_x0[(nS,nP)][nx]       - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
                             )
 
             else                #* Between Partitions
@@ -197,11 +198,11 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
                                 
                                 Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                 
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
+                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
                                 
-                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]        - z_diff[nS,nP-1,nx])   + rho*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]        - z_diff[nS,nP-1,nx])   + rho/2*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
                                 
-                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2       for nx in 1:Nx) 
+                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2       for nx in 1:Nx) 
                             )
                 
             end
@@ -313,12 +314,12 @@ Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
     #endregion
 
     #region ->#* rho update heuristic
-        # if prim_Residual_Norm       > 10*dual_Residual_Norm
-        #     rho = rho*2
-        # elseif dual_Residual_Norm   > 10*prim_Residual_Norm
-        #     rho = rho/2
-        # else
-        # end
+        if prim_Residual_Norm       > 10*dual_Residual_Norm
+            rho = rho*2
+        elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+            rho = rho/2
+        else
+        end
     #endregion
 
     #region ->#* Appending for Plotting
@@ -460,21 +461,21 @@ plot_μ_diff_R
                 # nS = 1; nP = 2
 
                 #Design Augmented terms
-                Aug_term_des[nS,nP]      = sum(plot_μ_des[nIter][nS,nP,ndes]*(plot_prim_res_des[nIter][nS,nP,ndes])            + rho*(plot_prim_res_des[nIter][nS,nP,ndes])^2            for ndes in 1:Ndes)
+                Aug_term_des[nS,nP]      = sum(plot_μ_des[nIter][nS,nP,ndes]*(plot_prim_res_des[nIter][nS,nP,ndes])            + rho/2*(plot_prim_res_des[nIter][nS,nP,ndes])^2            for ndes in 1:Ndes)
 
                 #differential augmented terms -> according to leftmost, Rightmost or Inbetween
                 if nP == 1      #*only right
 
-                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx)
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho/2*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx)
 
                 elseif nP == NP #*Only Left
                     
-                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho/2*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
 
                 else            #*Right and Left
 
-                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx) +
-                                           sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
+                    Aug_term_diff[nS,nP] = sum(plot_μ_diff_R[nIter][nS,nP,nx]*(plot_prim_res_diff_R[nIter][nS, nP, nx])       + rho/2*(plot_prim_res_diff_R[nIter][nS, nP, nx])^2          for nx in 1:Nx) +
+                                           sum(plot_μ_diff_L[nIter][nS,nP,nx]*(plot_prim_res_diff_L[nIter][nS,nP,nx])         + rho/2*(plot_prim_res_diff_L[nIter][nS,nP,nx])^2            for nx in 1:Nx)
 
                 end
             
@@ -538,16 +539,19 @@ plot_μ_diff_R
 
     nS1, nP1 = 1,1
     nS2, nP2 = 1,2
+    nS3, nP3 = 1,3
     #Profiles - Differential States
 
         p11 = plot( plot_t_SP[(nS1,nP1)], vcat(plot_x0[end][nS1,nP1,1]*100, plot_T_tes[end][nS1,nP1,:]) ,          label = "Ttes - SP1", ylim = [55,70])
         p11 = plot!(plot_t_SP[(nS2,nP2)], vcat(plot_x0[end][nS2,nP2,1]*100, plot_T_tes[end][nS2,nP2,:]) ,          label = "Ttes - SP2",  ylim = [55,70], title = "Diff state, rho = $rho")
+        p11 = plot!(plot_t_SP[(nS3,nP3)], vcat(plot_x0[end][nS3,nP3,1]*100, plot_T_tes[end][nS3,nP3,:]) ,          label = "Ttes - SP3",  ylim = [55,70])
 
     #Iteration Profiles - Design Variable
     plot_Iter = collect(1:NIter)
-        p21 = plot( plot_Iter, [plot_V_tes[nIter][1]  for nIter in 1:NIter],                    label = "des - SP1")
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][2]  for nIter in 1:NIter],                    label = "des - SP2")
-        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),                                         label = "des Centr",    title = "Des var, rho = $rho" )
+        p21 = plot( plot_Iter, [plot_V_tes[nIter][nP1]  for nIter in 1:NIter],                    label = "des - SP1")
+        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nP2]  for nIter in 1:NIter],                    label = "des - SP2")
+        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nP3]  for nIter in 1:NIter],                    label = "des - SP3")
+        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),                                           label = "des Centr",    title = "Des var, rho = $rho" )
 
     #Primal and Dual Infeasibility
         p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label  = "primal infeasibility", yscale = :log10)
@@ -565,8 +569,10 @@ plot_μ_diff_R
 
         p61 = plot( plot_Iter, [plot_μ_des[nIter][nS1,nP1]      for nIter in 1:NIter],              label = "μ1_des")
         p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS2,nP2]      for nIter in 1:NIter],              label = "μ2_des")
+        p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS3,nP3]      for nIter in 1:NIter],              label = "μ3_des")
         p61 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS1,nP1]   for nIter in 1:NIter],              label = "μ1 diff_R")
         p61 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS2,nP2]   for nIter in 1:NIter],              label = "μ2 diff_L",    title = "multipliers, rho = $rho")
+        p61 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS3,nP3]   for nIter in 1:NIter],              label = "μ3 diff_L")
 
 
         p71 = plot(plot_Iter, plot_rho[2:end],              title = "Rho updates")
