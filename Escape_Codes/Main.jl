@@ -13,21 +13,23 @@ Obj_scaling = 1e0
     NFE = convert(Int32, (Tf - 0)/dt)
 
     #make Profiles
-    plot_t = collect(0: dt: Tf)
+    plot_t_centr = collect(0: dt: Tf)
     Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
 
     #Make central Problem 
-    Centr = Build_OCP(Q_whb, plot_t[end] - plot_t[1] , (1,1))
+    Centr = Build_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , (1,1))
 
         #region -> #*make Dictionary of Subproblem Models
             SP = Dict()
             SP_len = convert(Int32,size(Q_whb)[2]/ NP)
+            plot_t_SP = Dict()
             for nS in 1:NS, nP in 1:NP
             # nS = 1
             # nP = 3
                 Q_whb_nS_nP = Q_whb[nS, SP_len*(nP-1)+1 : SP_len*(nP) ] 
-                t_nS_nP = plot_t[SP_len*(nP-1)+1 : SP_len*(nP)+1 ] 
+                t_nS_nP = plot_t_centr[SP_len*(nP-1)+1 : SP_len*(nP)+1 ] 
 
+                plot_t_SP[(nS,nP)] = copy(t_nS_nP)
                 SP[(nS,nP)] = Build_OCP(Q_whb_nS_nP, t_nS_nP[end] - t_nS_nP[1] , (nS,nP))
             end
                             SP
@@ -97,7 +99,7 @@ Obj_scaling = 1e0
     println("Central Solution is $star_V_tes")
 
     plotly()
-    plot(plot_t, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
+    plot(plot_t_centr, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
 
 ##* Solve subproblems using ADMM
 rho = 2.0*Obj_scaling
@@ -654,8 +656,8 @@ plot_μ_diff_R
     nS1, nP1 = 1,1
     nS2, nP2 = 1,2
 
-        p11 = plot( collect(0:30),  vcat(plot_x0[end][nS1,nP1,1]*100, plot_T_tes[end][nS1,nP1,:]) ,          label = "Ttes - SP1", ylim = [55,70])
-        p11 = plot!(collect(30:60), vcat(plot_x0[end][nS2,nP2,1]*100, plot_T_tes[end][nS2,nP2,:]) ,          label = "Ttes - SP2", title = "Diff state, rho = $rho", ylim = [55,70])
+        p11 = plot( plot_t_SP[(1,1)], vcat(plot_x0[end][nS1,nP1,1]*100, plot_T_tes[end][nS1,nP1,:]) ,          label = "Ttes - SP1", ylim = [55,70])
+        p11 = plot!(plot_t_SP[(1,2)], vcat(plot_x0[end][nS2,nP2,1]*100, plot_T_tes[end][nS2,nP2,:]) ,          label = "Ttes - SP2", title = "Diff state, rho = $rho", ylim = [55,70])
 
     #Iteration Profiles - Design Variable
     plot_Iter = collect(1:NIter)

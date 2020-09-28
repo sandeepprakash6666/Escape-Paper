@@ -138,13 +138,12 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         if np == 1
                               for nx in 1:Nx
                                     fix(x0[nx], x_guess[nx], force = true)
-                        
                               end
                         end
 
 
                   # Objective
-                  @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) + 20*(V_tes)^2 )    #Duty in KJ
+                  # @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) + 20*(V_tes)^2 )    #Duty in KJ
 
             #endregion
 
