@@ -244,7 +244,7 @@ end
 
 
 ##* Function to solve scenario OCP centrally
-function Build_Centr_OCP(Q_whb, Tf, (NS,NP) )
+function Build_Centr_OCP(Q_whb, Tf, NS )
 
       #region-> Value of Arguments for Debugging
             # Q_whb = vcat(1.0*ones(10,1), ones(10,1), 1.0*ones(10,1)) *1.2539999996092727e6
@@ -261,8 +261,8 @@ function Build_Centr_OCP(Q_whb, Tf, (NS,NP) )
                         #endregion
 
             ##? Set OCP Parameters here
-            Solve_OCP         = true
-            Display_Plots     = true
+            Solve_OCP         = false
+            Display_Plots     = false
             T0 = 0.0
             dt = 1.0
             NFE = convert(Int32, (Tf - T0)/dt)
@@ -334,11 +334,11 @@ function Build_Centr_OCP(Q_whb, Tf, (NS,NP) )
                         #endregion
                         
                         # Fix the initia state if leftmost partition
-                        if NP == 1
+                        # if NP == 1
                               for nx in 1:Nx
                                     fix(x0[nx], x_guess[nx], force = true)
                               end
-                        end
+                        # end
 
 
                   # Objective- is set from main file
@@ -360,7 +360,7 @@ function Build_Centr_OCP(Q_whb, Tf, (NS,NP) )
                   #?Defining Model Algebraic Equations in each line
                   Constr_Alg1[nfe in 1:NFE, ncp in 1:NCP, nS in 1:NS], T_b[nfe, ncp, nS]      == α[nfe,nS]*T_tes[nfe,ncp,nS]        + (1-α[nfe,nS])*T_whb[nfe,ncp,nS]
                   Constr_Alg2[nfe in 1:NFE, ncp in 1:NCP, nS in 1:NS], T_phb[nfe, ncp, nS]    == T_b[nfe,ncp,nS]                    + Q_phb[nfe,nS]/( q_dh*ρ_dh*Cp_dh )
-                  Constr_Alg3[nfe in 1:NFE, ncp in 1:NCP, nS in 1:NS], T_whb[nfe, ncp, nS]    == T_dh_ret                           + Q_whb[nfe,nS]/( q_dh*ρ_dh*Cp_dh) 
+                  Constr_Alg3[nfe in 1:NFE, ncp in 1:NCP, nS in 1:NS], T_whb[nfe, ncp, nS]    == T_dh_ret                           + Q_whb[nS, nfe]/( q_dh*ρ_dh*Cp_dh) 
                   #In case of more states - pattern
                   #Constr_Alg999[nfe=1:NFE, ncp=1:NCP], alg[999,nfe,ncp] ==
             end)
