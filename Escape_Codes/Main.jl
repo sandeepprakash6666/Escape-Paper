@@ -5,42 +5,42 @@ using Plots
 include("OCP.jl")
 
 
-global NS, NP = 1, 3
+global NS, NP = 1, 2    #Number of Scenarios, partitions in each scenario
 Obj_scaling = 1e0
 
 ##* Create Model Objects
-    Tf = 60
+    Tf = 60     #Time_Final for all scenarios
     NFE = convert(Int32, (Tf - 0)/dt)
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb = hcat(1.0*ones(1,10), 1.2*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
+    Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),    1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10)) *1.2539999996092727e6 
 
-    #Make central Problem 
+    #Make central Problem Object
     Centr = Build_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , (1,1))
 
-        #region -> #*make Dictionary of Subproblem Models
+        #region -> #*make Dictionary of Subproblem Model Objects
             SP = Dict()
             SP_len = convert(Int32,size(Q_whb)[2]/ NP)
             plot_t_SP = Dict()
             for nS in 1:NS, nP in 1:NP
-            # nS = 1
-            # nP = 3
-                Q_whb_nS_nP = Q_whb[nS, SP_len*(nP-1)+1 : SP_len*(nP) ] 
-                t_nS_nP = plot_t_centr[SP_len*(nP-1)+1 : SP_len*(nP)+1 ] 
+            # nS = 1; nP = 3
+                Q_whb_nS_nP = Q_whb[nS, SP_len*(nP-1)+1     : SP_len*(nP) ] 
+                t_nS_nP     = plot_t_centr[SP_len*(nP-1)+1  : SP_len*(nP)+1 ] 
 
                 plot_t_SP[(nS,nP)] = copy(t_nS_nP)
                 SP[(nS,nP)] = Build_OCP(Q_whb_nS_nP, t_nS_nP[end] - t_nS_nP[1] , (nS,nP))
             end
-                            SP
-                            SP[(1,1)]
-                            SP[(1,2)]
+                            #Testing
+                            # SP
+                            # SP[(1,1)]
+                            # SP[(1,2)]
                             # SP[(1,3)]
         #endregion
 
         #region-> #*Create Named references
 
-        #Subproblems
+        #Subproblems- accessed by dictionaries
             SP_des  = Dict()
             SP_x    = Dict()
             SP_x0   = Dict()
@@ -49,8 +49,7 @@ Obj_scaling = 1e0
             SP_V_tes = Dict()
             SP_T_tes = Dict()
             for nS in 1:NS, nP in 1:NP
-            # nS = 1
-            # nP = 1
+            # nS = 1; nP = 1
                 #Scaled variables
                 SP_des[(nS,nP)] = getindex(SP[(nS,nP)], :des) 
                 SP_x[(nS,nP)]   = getindex(SP[(nS,nP)], :x)
@@ -78,7 +77,7 @@ Obj_scaling = 1e0
 
         #endregion
 
-##* Solve Central Problem)
+##* Solve Central Problem
 
     @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe] for nfe in 1:Tf ) + 0.1*(Centr_des[1])^2) )
 
@@ -103,18 +102,23 @@ Obj_scaling = 1e0
 
 ##* Solve subproblems using ADMM
 
-    rho = 2.0*Obj_scaling
+    rho = 2.0*Obj_scaling 
+    eps_primal = 1e-6
+    eps_dual   = 1e-6
+
 
     z_des_us = [100.0]
     z_diff_us = [60.0]
 
-        z_des = NaN.*zeros(Ndes)
+        #Global copy in central coordinator (z)
+        z_des  = NaN.*zeros(Ndes)
         z_diff = NaN.*zeros(NS, NP-1, Nx)
         for ndes in 1:Ndes, nx in 1:Nx
             z_des[ndes]         = (z_des_us[ndes] - ls_des[ndes]) / (us_des[ndes] - ls_des[ndes])
             z_diff[:, :, nx]   .= (z_diff_us[nx]  - ls_x[nx])     / (us_x[nx]     - ls_x[nx]  )
         end
 
+        #Multipliers of complicating constraints
         μ_des    = zeros(NS, NP, Ndes)
         μ_diff_L = zeros(NS, NP, Nx)
         μ_diff_R = zeros(NS, NP, Nx)
@@ -148,226 +152,227 @@ Obj_scaling = 1e0
 
 ##* ADMM Iterations
 
-NIter = 150
-Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
-    #ADMM values
-    global rho
-    global z_des, z_diff
-    global μ_des, μ_diff_L, μ_diff_R
-    
-    #region-> #*Solve all partition problems
-        star_SP_Obj = zeros(NS, NP)*NaN
-        star_SP_des = zeros(NS, NP, Ndes)*NaN
-        star_SP_x0  = zeros(NS, NP, Nx)*NaN
-        star_SP_x   = zeros(NS, NP, Nx, convert(Int32,NFE/NP))*NaN
-        star_SP_u   = zeros(NS, NP, Nu, convert(Int32,NFE/NP))*NaN
+    NIter = 100
+    Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
+        #ADMM values - Passing only limited variables as global
+        global rho
+        global z_des, z_diff
+        global μ_des, μ_diff_L, μ_diff_R
+        
+        #region-> #*Solving all partition problems (can be ideally done in parallel)
+            star_SP_Obj = zeros(NS, NP)*NaN
+            star_SP_des = zeros(NS, NP, Ndes)*NaN
+            star_SP_x0  = zeros(NS, NP, Nx)*NaN
+            star_SP_x   = zeros(NS, NP, Nx, convert(Int32,NFE/NP))*NaN
+            star_SP_u   = zeros(NS, NP, Nu, convert(Int32,NFE/NP))*NaN
 
-        star_SP_V_tes = zeros(NS, NP)
-        star_SP_T_tes = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
+            star_SP_V_tes = zeros(NS, NP)
+            star_SP_T_tes = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
 
-        for nS in 1:NS, nP in 1:NP
+            for nS in 1:NS, nP in 1:NP
+                    
+                if nP == 1          #* First Partition
+                    # nS = 1 ; nP = 1
+                    @NLobjective(SP[(nS,nP)], Min,  
+                                    
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                    
+                                    + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
+                                    
+                                    + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2        for nx in 1:Nx) 
+                                )
+                    
+                elseif nP == NP     #* Last Partition
+                    # nS = 1; nP = 3
+                    @NLobjective(SP[(nS,nP)], Min,  
+                                    
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                    
+                                    + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])              + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
+                                    
+                                    + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]    - z_diff[nS,nP-1,nx])       + rho/2*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                                )
+
+                else                #* Between Partitions
+                    # nS = 1; nP = 2
+                    @NLobjective(SP[(nS,nP)], Min,  
+                                    
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                                    
+                                    + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
+                                    
+                                    + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]        - z_diff[nS,nP-1,nx])   + rho/2*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
+                                    
+                                    + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2       for nx in 1:Nx) 
+                                )
+                    
+                end
                 
-            if nP == 1          #* First Partition
-                # nS = 1 
-                # nP = 1
-                @NLobjective(SP[(nS,nP)], Min,  
-                                
-                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
-                                                
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])        + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
-                                
-                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])   + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2        for nx in 1:Nx) 
-                            )
-                
-            elseif nP == NP     #* Last Partition
-                # nS = 1 
-                # nP = 3
-                @NLobjective(SP[(nS,nP)], Min,  
-                                
-                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
-                                                
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])            + rho/2*(SP_des[(nS,nP)][ndes]    - z_des[ndes])^2            for ndes in 1:Ndes)
-                                
-                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]    - z_diff[nS,nP-1,nx])     + rho/2*(SP_x0[(nS,nP)][nx]       - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
-                            )
+                #solve current subproblem (nS,nP)
+                optimize!(SP[(nS,nP)])
+                JuMP.termination_status(SP[(nS,nP)])
+                JuMP.solve_time(SP[(nS,nP)]::Model)
+                star_SP_Obj[nS,nP] = JuMP.objective_value(SP[(nS,nP)])
 
-            else                #* Between Partitions
-                # nS = 1 
-                # nP = 2
-                @NLobjective(SP[(nS,nP)], Min,  
-                                
-                                Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                   + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
-                                                
-                                + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
-                                
-                                + sum(  μ_diff_L[nS, nP, nx]*(SP_x0[(nS,nP)][nx]        - z_diff[nS,nP-1,nx])   + rho/2*(SP_x0[(nS,nP)][nx]         - z_diff[nS,nP-1,nx])^2     for nx in 1:Nx) 
-                                
-                                + sum(  μ_diff_R[nS, nP, nx]*(SP_x[(nS,nP)][nx,end,end] - z_diff[nS,nP,nx])     + rho/2*(SP_x[(nS,nP)][nx,end,end]  - z_diff[nS,nP,nx])^2       for nx in 1:Nx) 
-                            )
+                #solution from SP (nS,nP)
+                star_SP_des[nS, nP, :]  = JuMP.value.(SP_des[(nS,nP)])
+                star_SP_x0[nS, nP, :]   = JuMP.value.(SP_x0[(nS,nP)])
+                star_SP_x[nS, nP, :, :] = JuMP.value.(SP_x[(nS,nP)])[:,:,NCP]
+                star_SP_u[nS, nP, :, :] = JuMP.value.(SP_u[(nS,nP)])
+            
+                star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
+                star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
                 
             end
-            
-            #solve problem
-            optimize!(SP[(nS,nP)])
-            JuMP.termination_status(SP[(nS,nP)])
-            JuMP.solve_time(SP[(nS,nP)]::Model)
-            star_SP_Obj[nS,nP] = JuMP.objective_value(SP[(nS,nP)])
 
-            #solution from SP
-            star_SP_des[nS, nP, :]  = JuMP.value.(SP_des[(nS,nP)])
-            star_SP_x0[nS, nP, :]   = JuMP.value.(SP_x0[(nS,nP)])
-            star_SP_x[nS, nP, :, :] = JuMP.value.(SP_x[(nS,nP)])[:,:,NCP]
-            star_SP_u[nS, nP, :, :] = JuMP.value.(SP_u[(nS,nP)])
-        
-            star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
-            star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
-            
-        end
-    #endregion
+                # Testing values
+                star_SP_Obj
+                star_SP_des
+                star_SP_x0
+                star_SP_x
+                star_SP_u
 
-        star_SP_Obj
-        star_SP_des
-        star_SP_x0
-        star_SP_x
-        star_SP_u
+                star_SP_V_tes
+                star_SP_T_tes
 
-        star_SP_V_tes
-        star_SP_T_tes
- 
-    #* ADMM Updates
-    #region ->#*z-Updates  
-        #Design
-        for ndes in 1:Ndes
-            # ndes = 1
-            z_des[ndes] = sum(star_SP_des[nS, nP, ndes] for nS in 1:NS, nP in 1:NP )/(NS*NP)
-        end
+        #endregion
 
-        #Differential
-        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
-        # nS = 1; nP = 1; nx = 1
-            z_diff[nS,nP,nx] = (star_SP_x[nS, nP, nx, end]  +   star_SP_x0[nS, nP+1, nx] )/2   
-        end
-        
-    z_des
-    z_diff
-    #endregion
+        #* ADMM Updates
 
-    #region ->#*Primal Residuals
-        #Design
-        prim_res_des    = zeros(NS, NP, Ndes)
-        for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
-            prim_res_des[nS, nP, ndes] = star_SP_des[nS, nP, ndes] - z_des[ndes]
-        end
-        
-        #Differential
-        prim_res_diff_L = zeros(NS, NP, Nx)
-        prim_res_diff_R = zeros(NS, NP, Nx)
-        for nS in 1:NS, nP in 1:NP, nx in 1:Nx
-        # nS = 1; nP = 3; nx = 1
-            if nP >= 2 #No left for 1st paertition
-                prim_res_diff_L[nS, nP, nx] = star_SP_x0[nS, nP, nx] - z_diff[nS,nP-1,nx]
+        #region ->#*z-Updates  
+            #Design
+            for ndes in 1:Ndes
+                # ndes = 1
+                z_des[ndes] = sum(star_SP_des[nS, nP, ndes] for nS in 1:NS, nP in 1:NP )/(NS*NP)
             end
 
-            if nP <= NP - 1 #No right for Last
-                prim_res_diff_R[nS, nP, nx] = star_SP_x[nS, nP, nx, end] - z_diff[nS, nP, nx]
+            #Differential
+            for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
+            # nS = 1; nP = 1; nx = 1
+                z_diff[nS,nP,nx] = (star_SP_x[nS, nP, nx, end]  +   star_SP_x0[nS, nP+1, nx] )/2   
             end
-        end
             
-        prim_res_des
-        prim_res_diff_L
-        prim_res_diff_R
-    #endregion
-    prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes, nx in 1:Nx ) )^0.5
+        z_des
+        z_diff
+        #endregion
 
-    #region ->#*Dual Residuals
-        #Design
-        dual_res_des = zeros(Ndes)
-        for ndes in 1:Ndes
-            dual_res_des[ndes]  = rho*(z_des[ndes]  - plot_z_des[end][ndes] )
-        end
+        #region ->#*Primal Residuals
+            #Design
+            prim_res_des    = zeros(NS, NP, Ndes)
+            for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
+                prim_res_des[nS, nP, ndes] = star_SP_des[nS, nP, ndes] - z_des[ndes]
+            end
+            
+            #Differential
+            prim_res_diff_L = zeros(NS, NP, Nx)
+            prim_res_diff_R = zeros(NS, NP, Nx)
+            for nS in 1:NS, nP in 1:NP, nx in 1:Nx
+            # nS = 1; nP = 3; nx = 1
+                if nP >= 2 #No left for 1st paertition
+                    prim_res_diff_L[nS, nP, nx] = star_SP_x0[nS, nP, nx] - z_diff[nS,nP-1,nx]
+                end
 
-        #Differential
-        dual_res_diff = zeros(NS, NP-1, Nx)
-        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx 
-            dual_res_diff[nS, nP, nx] = rho*(  z_diff[nS, nP, nx]- plot_z_diff[end][nS, nP, nx] )
-        end
+                if nP <= NP - 1 #No right for Last
+                    prim_res_diff_R[nS, nP, nx] = star_SP_x[nS, nP, nx, end] - z_diff[nS, nP, nx]
+                end
+            end
+                
+            prim_res_des
+            prim_res_diff_L
+            prim_res_diff_R
+        #endregion
+        prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes, nx in 1:Nx ) )^0.5
 
-        dual_res_des
-        dual_res_diff
-    #endregion
-    dual_Residual_Norm = ( sum(dual_res_des[ndes]^2       + dual_res_diff[nS,nP,nx]^2                                   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
+        #region ->#*Dual Residuals
+            #Design
+            dual_res_des = zeros(Ndes)
+            for ndes in 1:Ndes
+                dual_res_des[ndes]  = rho*(z_des[ndes]  - plot_z_des[end][ndes] )
+            end
 
-    #region ->#*μ Update
-        for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
-            μ_des[nS,nP,ndes] = μ_des[nS,nP,ndes] + rho*(prim_res_des[nS,nP,ndes])
-        end
+            #Differential
+            dual_res_diff = zeros(NS, NP-1, Nx)
+            for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx 
+                dual_res_diff[nS, nP, nx] = rho*(  z_diff[nS, nP, nx]- plot_z_diff[end][nS, nP, nx] )
+            end
 
-        for nS in 1:NS, nP in 1:NP, nx in 1:Nx
-            μ_diff_L[nS,nP,nx] =  μ_diff_L[nS,nP,nx] + rho*(prim_res_diff_L[nS,nP,nx])
-            μ_diff_R[nS,nP,nx] =  μ_diff_R[nS,nP,nx] + rho*(prim_res_diff_R[nS,nP,nx])
-        end
+            dual_res_des
+            dual_res_diff
+        #endregion
+        dual_Residual_Norm = ( sum(dual_res_des[ndes]^2       + dual_res_diff[nS,nP,nx]^2                                   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
 
-        μ_des
-        μ_diff_L
-        μ_diff_R
+        #region ->#*μ Update
+            for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
+                μ_des[nS,nP,ndes] = μ_des[nS,nP,ndes] + rho*(prim_res_des[nS,nP,ndes])
+            end
 
-    #endregion
+            for nS in 1:NS, nP in 1:NP, nx in 1:Nx
+                μ_diff_L[nS,nP,nx] =  μ_diff_L[nS,nP,nx] + rho*(prim_res_diff_L[nS,nP,nx])
+                μ_diff_R[nS,nP,nx] =  μ_diff_R[nS,nP,nx] + rho*(prim_res_diff_R[nS,nP,nx])
+            end
 
-    #region ->#* rho update heuristic
-        if prim_Residual_Norm       > 10*dual_Residual_Norm
-            rho = rho*2
-        elseif dual_Residual_Norm   > 10*prim_Residual_Norm
-            rho = rho/2
-        else
-        end
-    #endregion
+            μ_des
+            μ_diff_L
+            μ_diff_R
 
-    #region ->#* Appending for Plotting
+        #endregion
 
-        push!(plot_rho,       copy(rho))
-        push!(plot_z_des,     copy(z_des) )
-        push!(plot_z_diff,    copy(z_diff))
+        #region ->#* rho update heuristic
+            if prim_Residual_Norm       > 10*dual_Residual_Norm
+                rho = rho*2
+            elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+                rho = rho/2
+            else
+            end
+        #endregion
 
-        push!(plot_Obj,       copy(star_SP_Obj))
-        push!(plot_des,       copy(star_SP_des))
-        push!(plot_x,         copy(star_SP_x))
-        push!(plot_x0,        copy(star_SP_x0))
+        #region ->#* Appending for Plotting
 
-        push!(plot_μ_des,     copy(μ_des))
-        push!(plot_μ_diff_L,  copy(μ_diff_L))
-        push!(plot_μ_diff_R,  copy(μ_diff_R))
+            push!(plot_rho,       copy(rho))
+            push!(plot_z_des,     copy(z_des) )
+            push!(plot_z_diff,    copy(z_diff))
 
-        push!(plot_V_tes,     copy(star_SP_V_tes))
-        push!(plot_T_tes,     copy(star_SP_T_tes))
-    #endregion
+            push!(plot_Obj,       copy(star_SP_Obj))
+            push!(plot_des,       copy(star_SP_des))
+            push!(plot_x,         copy(star_SP_x))
+            push!(plot_x0,        copy(star_SP_x0))
 
-    #region-> #*Warm Starting
+            push!(plot_μ_des,     copy(μ_des))
+            push!(plot_μ_diff_L,  copy(μ_diff_L))
+            push!(plot_μ_diff_R,  copy(μ_diff_R))
 
-        # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
-        # set_start_value(des1[ndes],                star_des1[ndes])
-        # set_start_value(x01[nx],                   star_x01[nx])
-        # set_start_value(x1[nx, nfe, ncp],          star_x1[nx, nfe])
-        # # set_start_value(z1[nz, nfe, ncp],          z_guess[nz])
-        # # set_start_value(u1[nu, nfe],               u_guess[nu])
+            push!(plot_V_tes,     copy(star_SP_V_tes))
+            push!(plot_T_tes,     copy(star_SP_T_tes))
+        #endregion
 
-        #         set_start_value(des2[ndes],                star_des2[ndes])
-        #         set_start_value(x02[nx],                   star_x02[nx])
-        #         set_start_value(x2[nx, nfe, ncp],          star_x2[nx, nfe])
-        #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
-        #         # set_start_value(u2[nu, nfe],               u_guess[nu])
-        # end
+        #region-> #*Warm Starting
 
-    #endregion
+            # for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:30, ncp in 1:3 #todo- generalise NFE and NCP
+            # set_start_value(des1[ndes],                star_des1[ndes])
+            # set_start_value(x01[nx],                   star_x01[nx])
+            # set_start_value(x1[nx, nfe, ncp],          star_x1[nx, nfe])
+            # # set_start_value(z1[nz, nfe, ncp],          z_guess[nz])
+            # # set_start_value(u1[nu, nfe],               u_guess[nu])
 
-end
+            #         set_start_value(des2[ndes],                star_des2[ndes])
+            #         set_start_value(x02[nx],                   star_x02[nx])
+            #         set_start_value(x2[nx, nfe, ncp],          star_x2[nx, nfe])
+            #         # set_start_value(z2[nz, nfe, ncp],          z_guess[nz])
+            #         # set_start_value(u2[nu, nfe],               u_guess[nu])
+            # end
 
-plot_x0
-plot_z_des
-plot_z_diff
+        #endregion
 
-plot_μ_des
-plot_μ_diff_L   #!check if adjacent ones sum to zero (with SP3)
-plot_μ_diff_R
+    end
+        #region ->testing points
+        plot_x0
+        plot_z_des
+        plot_z_diff
+
+        plot_μ_des
+        plot_μ_diff_L   #!check if adjacent ones sum to zero (with SP3)
+        plot_μ_diff_R
+        #endregion
 
 ##* Calculating ADMM - Summary Stats
 
@@ -518,18 +523,20 @@ plot_μ_diff_R
 
     #endregion
 
-    plot_prim_res_des
-    plot_prim_res_diff_L
-    plot_prim_res_diff_R
-    plot_prim_Residual_Norm
+        #region ->testing points
+        plot_prim_res_des
+        plot_prim_res_diff_L
+        plot_prim_res_diff_R
+        plot_prim_Residual_Norm
 
-    plot_dual_res_des
-    plot_dual_res_diff
-    plot_dual_Residual_Norm
+        plot_dual_res_des
+        plot_dual_res_diff
+        plot_dual_Residual_Norm
 
-    plot_Aug_term
-    
-    plot_star_f
+        plot_Aug_term
+        
+        plot_star_f
+        #endregion
 
 ##* Plot ADMM itreations Summary
 
@@ -554,8 +561,10 @@ plot_μ_diff_R
         p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),                                           label = "des Centr",    title = "Des var, rho = $rho" )
 
     #Primal and Dual Infeasibility
-        p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label  = "primal infeasibility", yscale = :log10)
+        p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",  yscale = :log10)
         p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",    yscale = :log10, title = "Infeasibility, rho = $rho")
+        p31 = plot!(plot_Iter, eps_primal.*ones(NIter),                                         label = "primal_limit", line = :dot   )
+        p31 = plot!(plot_Iter, eps_dual.*ones(NIter),                                           label = "dual limit",   line = :dot)
 
     #Objective Function Values
         p41 = plot(plot_Iter,  [ sum(plot_star_f[nIter][nS,nP]  for nS in 1:NS, nP in 1:NP) for nIter in 1:NIter] , label = "f - Distribuited")

@@ -50,9 +50,6 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         #region-> Setting Initial guesses and Dimensions
                         # dx0_us  = 0*x_guess
                         # alg0_us = 0 * z0
-                        # Nx = size(x0, 1)
-                        # Nz = size(z0, 1)
-                        # Nu = size(u0, 1)
                         #endregion
 
             ##? Set OCP Parameters here
@@ -86,8 +83,8 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                               set_lower_bound(des[ndes], 0)
                               set_upper_bound(des[ndes], 1)
 
-                              # set_lower_bound(x0[nx], 0)
-                              # set_upper_bound(x0[nx], 1)
+                              set_lower_bound(x0[nx], 0)
+                              set_upper_bound(x0[nx], 1)
 
                               set_lower_bound(x[nx, nfe, ncp], 0)
                               set_upper_bound(x[nx, nfe, ncp], 1)
@@ -98,9 +95,6 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                               #set_lower_bound(dx_us[nx, nfe, ncp], 0)
                               #set_upper_bound(dx_us[nx, nfe, ncp], 999)
 
-                              #set_lower_bound(alg_us[nz, nfe, ncp], 0)
-                              #set_upper_bound(alg_us[nz, nfe, ncp], 999)
-
                               set_lower_bound(u[nu, nfe], 0)
                               set_upper_bound(u[1,  nfe], 1)
                         end
@@ -108,11 +102,10 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                               #Initial Guesses (Scaled)
                         for ndes in 1:Ndes, nx in 1:Nx, nz in 1:Nz, nu in 1:Nu, nfe in 1:NFE, ncp in 1:NCP
                               set_start_value(des[ndes],                des_guess[ndes])
-                              # set_start_value(x0[nx],                   x_guess[nx])
+                              set_start_value(x0[nx],                   x_guess[nx])
                               set_start_value(x[nx, nfe, ncp],          x_guess[nx])
                               set_start_value(z[nz, nfe, ncp],          z_guess[nz])
                               set_start_value(dx_us[nx, nfe, ncp],      0.0)
-                              # set_start_value(alg_us[nz, nfe, ncp],     0)
                               set_start_value(u[nu, nfe],               u_guess[nu])
 
                         end
@@ -134,7 +127,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         end)
                         #endregion
                         
-                        # @variable(model1, z_ADMM)
+                        # Fix the initia state if leftmost partition
                         if np == 1
                               for nx in 1:Nx
                                     fix(x0[nx], x_guess[nx], force = true)
@@ -142,7 +135,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                         end
 
 
-                  # Objective
+                  # Objective- is set from main file
                   # @NLobjective(model1, Min, sum( Q_phb[nfe] for nfe in 1:NFE ) + 20*(V_tes)^2 )    #Duty in KJ
 
             #endregion
