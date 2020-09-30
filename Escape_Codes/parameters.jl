@@ -3,21 +3,21 @@ module Bounds
 
 
     ##? Unscaled Initial POints/ Guesses
-    x0_us = [60.0]
-    z0_us = [60.0; 60.0; 60.0]
-    u0_us = [0.0; 0.0]
+    x0_us = [60.0;  60.0; 60.0]
+    z0_us = [60.0]
+    u0_us = [0.0;   0.0]
 
     des0_us = [100.0]
 
     ##? Lower and Upper scales
-    ls_x = [0.0]
-    us_x = [100.0]
+    ls_x = [0.0;    0.0;    0.0]
+    us_x = [100.0;  100.0;  100.0]
 
-    ls_z = [0.0; 0.0; 0.0]
-    us_z = [100.0; 100.0; 100.0]
+    ls_z = [0.0]
+    us_z = [100.0]
 
-    ls_u = [0.0; 0.0]
-    us_u = [1.0; 10000000]
+    ls_u = [0.0;    0.0]
+    us_u = [1.0;    10000000]
 
     ls_des = [75.0]
     us_des = [125.0]
@@ -57,10 +57,12 @@ module Model_parameters
     T_dh_ret = 30
     T_dh_minSup = 60
 
-    # V_tes = 100
+    V_phb = 10.0
+    V_whb = 10.0
 
     export  ρ_dh, Cp_dh, q_dh, 
             ρ_wh, Cp_wh, q_wh, 
-            T_dh_ret, T_dh_minSup, V_tes
+            T_dh_ret, T_dh_minSup, 
+            V_phb, V_whb
 
 end

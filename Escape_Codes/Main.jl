@@ -4,8 +4,7 @@ NCP = 3
 using Plots
 include("OCP.jl")
 
-
-global NS, NP = 2, 3    #Number of Scenarios, partitions in each scenario
+global NS, NP = 1, 3    #Number of Scenarios, partitions in each scenario
 Obj_scaling = 1e0
 
 ##* Create Model Objects
@@ -14,9 +13,10 @@ Obj_scaling = 1e0
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10)), 
-                    hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))        )*1.2539999996092727e6 
-
+    Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))*1.2539999996092727e6 
+    
+    # Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10)), 
+    #                 hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))        )*1.2539999996092727e6 
 
     #Make central Problem Object
     Centr = Build_Centr_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , NS )
@@ -34,10 +34,10 @@ Obj_scaling = 1e0
                 SP[(nS,nP)] = Build_OCP(Q_whb_nS_nP, t_nS_nP[end] - t_nS_nP[1] , (nS,nP))
             end
                             #Testing
-                            SP
-                            SP[(1,1)]
-                            SP[(2,1)]
-                            SP[(1,3)]
+                            # SP
+                            # SP[(1,1)]
+                            # SP[(2,1)]
+                            # SP[(1,3)]
         #endregion
 
         #region-> #*Create Named references
@@ -50,6 +50,9 @@ Obj_scaling = 1e0
 
             SP_V_tes = Dict()
             SP_T_tes = Dict()
+            SP_T_phb = Dict()
+            SP_T_whb = Dict()
+
             for nS in 1:NS, nP in 1:NP
             # nS = 1; nP = 1
                 #Scaled variables
@@ -61,10 +64,13 @@ Obj_scaling = 1e0
                 #unscaled variables
                 SP_V_tes[(nS,nP)]   = getindex(SP[(nS,nP)], :V_tes)
                 SP_T_tes[(nS,nP)]   = getindex(SP[(nS,nP)], :T_tes)[:,end]
+                SP_T_phb[(nS,nP)]   = getindex(SP[(nS,nP)], :T_phb)[:,end]
+                SP_T_whb[(nS,nP)]   = getindex(SP[(nS,nP)], :T_whb)[:,end]
+
             end
-                            
-                            SP_des[(1,1)][1]
-                            SP_x[(1,1)][1,end,end] 
+                            #Testing
+                            # SP_des[(1,1)][1]
+                            # SP_x[(1,1)][1,end,end] 
 
         #Central Solver
                 #Scaled variables
@@ -76,7 +82,8 @@ Obj_scaling = 1e0
                 #unscaled variables
                 Centr_V_tes   = getindex(Centr, :V_tes)
                 Centr_T_tes   = getindex(Centr, :T_tes)[:,end,:]
-
+                Centr_T_phb   = getindex(Centr, :T_phb)[:,end,:] 
+                Centr_T_whb   = getindex(Centr, :T_whb)[:,end,:]
         #endregion
 
 ##* Solve Central Problem
@@ -94,23 +101,31 @@ Obj_scaling = 1e0
 
     star_V_tes = JuMP.value(Centr_V_tes)
     star_T_tes = JuMP.value.(Centr_T_tes)
-                 star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
-    
+    star_T_phb = JuMP.value.(Centr_T_phb)         
+    star_T_whb = JuMP.value.(Centr_T_whb)
+        star_T_tes = cat(star_x0_us[1], star_T_tes, dims = 1)    
+        star_T_phb = cat(star_x0_us[2], star_T_phb, dims = 1)    
+        star_T_whb = cat(star_x0_us[3], star_T_whb, dims = 1)    
+
     #plot Central solution
-    println("Central Solution is $star_V_tes")
 
     plotly()
-    plot(plot_t_centr, star_T_tes, ylim = [55,70], label = "Ttes - Centr", title = "Diff state, Central" )
+    p00 = plot( plot_t_centr, star_T_tes, label = "Ttes - Centr",                                  ylim = [45,75])
+    p00 = plot!(plot_t_centr, star_T_phb, label = "Tphb - Centr",                                  ylim = [45,75])
+    p00 = plot!(plot_t_centr, star_T_whb, label = "Twhb - Centr",  title = "Diff state, Central",  ylim = [45,75] )
+
+    println("Central Solution is $star_V_tes")
+    p00
 
 ##* Solve subproblems using ADMM
 
-    rho = 2.0*Obj_scaling 
+    rho = 1.0*Obj_scaling/5 
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
 
     z_des_us = [100.0]
-    z_diff_us = [60.0]
+    z_diff_us = [60.0; 60.0; 60.0]
 
         #Global copy in central coordinator (z)
         z_des  = NaN.*zeros(Ndes)
@@ -140,6 +155,8 @@ Obj_scaling = 1e0
             #Unscaled Variables
             plot_V_tes = []
             plot_T_tes = []
+            plot_T_phb = []
+            plot_T_whb = []
 
             #Multipliers
             plot_μ_des = []
@@ -154,7 +171,7 @@ Obj_scaling = 1e0
 
 ##* ADMM Iterations
 
-    NIter = 100
+    NIter = 200
     Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #ADMM values - Passing only limited variables as global
         global rho
@@ -170,6 +187,8 @@ Obj_scaling = 1e0
 
             star_SP_V_tes = zeros(NS, NP)
             star_SP_T_tes = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
+            star_SP_T_phb = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
+            star_SP_T_whb = zeros(NS, NP, convert(Int32,NFE/NP))*NaN
 
             for nS in 1:NS, nP in 1:NP
                     
@@ -224,7 +243,9 @@ Obj_scaling = 1e0
             
                 star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
                 star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
-                
+                star_SP_T_phb[nS,nP,:]  = JuMP.value.(SP_T_phb[(nS,nP)])
+                star_SP_T_whb[nS,nP,:]  = JuMP.value.(SP_T_whb[(nS,nP)])
+
             end
 
                 # Testing values
@@ -320,12 +341,12 @@ Obj_scaling = 1e0
         #endregion
 
         #region ->#* rho update heuristic
-            if prim_Residual_Norm       > 10*dual_Residual_Norm
-                rho = rho*2
-            elseif dual_Residual_Norm   > 10*prim_Residual_Norm
-                rho = rho/2
-            else
-            end
+            # if prim_Residual_Norm       > 10*dual_Residual_Norm
+            #     rho = rho*2
+            # elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+            #     rho = rho/2
+            # else
+            # end
         #endregion
 
         #region ->#* Appending for Plotting
@@ -345,6 +366,9 @@ Obj_scaling = 1e0
 
             push!(plot_V_tes,     copy(star_SP_V_tes))
             push!(plot_T_tes,     copy(star_SP_T_tes))
+            push!(plot_T_phb,     copy(star_SP_T_phb))
+            push!(plot_T_whb,     copy(star_SP_T_whb))
+
         #endregion
 
         #region-> #*Warm Starting
@@ -546,36 +570,29 @@ Obj_scaling = 1e0
     plotly()
     # gr()
 
-    nS1, nS2 = 1,2
-    nP1, nP2, nP3 = 1,2,3
-    
     #Profiles - Differential States
-
-        p11 = plot( plot_t_SP[(nS1,nP1)], vcat(plot_x0[end][nS1,nP1,1]*100, plot_T_tes[end][nS1,nP1,:]) ,          label = "Ttes - S1,P1",  ylim = [55,70])
-        p11 = plot!(plot_t_SP[(nS1,nP2)], vcat(plot_x0[end][nS1,nP2,1]*100, plot_T_tes[end][nS1,nP2,:]) ,          label = "Ttes - S1,P2",  ylim = [55,70], title = "Diff state, rho = $rho")
-        p11 = plot!(plot_t_SP[(nS2,nP1)], vcat(plot_x0[end][nS2,nP1,1]*100, plot_T_tes[end][nS2,nP1,:]) ,          label = "Ttes - S2,P1",  ylim = [55,70])
-        p11 = plot!(plot_t_SP[(nS2,nP2)], vcat(plot_x0[end][nS2,nP2,1]*100, plot_T_tes[end][nS2,nP2,:]) ,          label = "Ttes - S2,P1",  ylim = [55,70])
-        
-        p11 = plot!(plot_t_SP[(nS1,nP3)], vcat(plot_x0[end][nS1,nP3,1]*100, plot_T_tes[end][nS1,nP3,:]) ,          label = "Ttes - S1,P3",  ylim = [55,70])
-        p11 = plot!(plot_t_SP[(nS2,nP3)], vcat(plot_x0[end][nS2,nP3,1]*100, plot_T_tes[end][nS2,nP3,:]) ,          label = "Ttes - S2,P3",  ylim = [55,70])
-
+        p11 = plot(title = "Diff states, ADMM, rho = $rho")
+            for nS in 1:NS, nP in 1:NP
+                global p11
+                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,1]*100, plot_T_tes[end][nS,nP,:]) ,          label = "Ttes - S$nS,P$nP",  ylim = [45,75])
+                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,2]*100, plot_T_phb[end][nS,nP,:]) ,          label = "Tphb - S$nS,P$nP",  ylim = [45,75])
+                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,3]*100, plot_T_whb[end][nS,nP,:]) ,          label = "Twhb - S$nS,P$nP",  ylim = [45,75])
+            end
 
     #Iteration Profiles - Design Variable
-    plot_Iter = collect(1:NIter)
-        p21 = plot( plot_Iter, [plot_V_tes[nIter][nS1,nP1]  for nIter in 1:NIter],                    label = "des - S1,P1")
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS1,nP2]  for nIter in 1:NIter],                    label = "des - S1,P2")
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS2,nP1]  for nIter in 1:NIter],                    label = "des - S2,P1")
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS2,nP2]  for nIter in 1:NIter],                    label = "des - S2,P2")
-        p21 = plot!(plot_Iter, star_V_tes.*ones(NIter),                                               label = "des Centr",    title = "Des var, rho = $rho" )
-        
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS1,nP3]  for nIter in 1:NIter],                    label = "des - S1,P3")
-        p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS2,nP3]  for nIter in 1:NIter],                    label = "des - S2,P3")
+        plot_Iter = collect(1:NIter)
+        p21 = plot(plot_Iter, star_V_tes*ones(NIter),                                           label = "des - Centralized",    title = "Des var, rho = $rho")
+        for nS in 1:NS, nP in 1:NP
+            global p21
+            p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS,nP]  for nIter in 1:NIter],            label = "des - S$nS,P$nP")
+        end
 
+        
     #Primal and Dual Infeasibility
-        p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",  yscale = :log10)
-        p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",    yscale = :log10, title = "Infeasibility, rho = $rho")
-        p31 = plot!(plot_Iter, eps_primal.*ones(NIter),                                         label = "primal_limit", line = :dot   )
-        p31 = plot!(plot_Iter, eps_dual.*ones(NIter),                                           label = "dual limit",   line = :dot)
+        p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",                                         yscale = :log10)
+        p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",   title = "Infeasibility, rho = $rho",    yscale = :log10)
+        p31 = plot!(plot_Iter, eps_primal.*ones(NIter),                                         label = "primal_limit",                                                 line = :dot   )
+        p31 = plot!(plot_Iter, eps_dual.*ones(NIter),                                           label = "dual limit",                                                   line = :dot)
 
     #Objective Function Values
         p41 = plot(plot_Iter,  [ sum(plot_star_f[nIter][nS,nP]  for nS in 1:NS, nP in 1:NP) for nIter in 1:NIter] , label = "f - Distribuited")
@@ -587,22 +604,24 @@ Obj_scaling = 1e0
         # p51 = plot!(plot_Iter, plot_Aug_terms1,             label = "f1 Aug Terms")
         # p51 = plot!(plot_Iter, plot_Aug_terms2,             label = "f2 Aug Terms", title = "SP1 objective, rho = $rho")
 
-        p61 = plot( plot_Iter, [plot_μ_des[nIter][nS1,nP1]      for nIter in 1:NIter],              label = "μ1,1_des")
-        p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS1,nP2]      for nIter in 1:NIter],              label = "μ1,2_des")
-        p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS2,nP1]      for nIter in 1:NIter],              label = "μ2,1_des")
-        p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS2,nP2]      for nIter in 1:NIter],              label = "μ2,2_des", title = "multipliers_Des, rho = $rho")
-            p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS1,nP3]      for nIter in 1:NIter],              label = "μ1,3_des")
-            p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS2,nP3]      for nIter in 1:NIter],              label = "μ2,3_des")
+    #Multipliers - Design
+        p61 = plot(title = "Multipliers - Des, rho = $rho")
+        for nS in 1:NS, nP in 1:NP
+            global p61
+            p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS,nP]      for nIter in 1:NIter],                    label = "μS$nS,P$nP -des")
+        end
 
-        p71 = plot( plot_Iter, [plot_μ_diff_R[nIter][nS1,nP1]   for nIter in 1:NIter],              label = "μ1,1 diff_R")
-        p71 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS1,nP2]   for nIter in 1:NIter],              label = "μ1,2 diff_L",    title = "multipliers_Diff, rho = $rho")
-        p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS2,nP1]   for nIter in 1:NIter],              label = "μ2,1 diff_R")
-        p71 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS2,nP2]   for nIter in 1:NIter],              label = "μ2,2 diff_L")
-            p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS1,nP3]   for nIter in 1:NIter],              label = "μ1,3 diff_L")
-            p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS2,nP3]   for nIter in 1:NIter],              label = "μ2,3 diff_L")
+    #multipliers - Differential
+        p71 = plot(title = "multipliers_Diff, rho = $rho")
+        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
+            global p71
+            p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS,nP,   nx]   for nIter in 1:NIter],              label = "μ$nS,$nP -diff_R $nx")
+            p71 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS,nP+1, nx]   for nIter in 1:NIter],              label = "μ$nS,$(nP+1) -diff_L $nx")
+        end
 
+    #rho updates
+        p81 = plot(plot_Iter, plot_rho[2:end],                                                                                                  title = "Rho updates")
 
-        p81 = plot(plot_Iter, plot_rho[2:end],              title = "Rho updates")
 
 
 ##* Display Plots
@@ -614,6 +633,3 @@ p41
 p61
 p71
 display(Tot_time_in_ADMM)
-
-
-Tot_time_in_ADMM
