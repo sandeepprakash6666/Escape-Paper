@@ -13,9 +13,9 @@ Obj_scaling = 1e0
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb =           hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))*1.2539999996092727e6 
+    Q_whb =           hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))           *1.2539999996092727e6 
     # Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10)), 
-    #                 hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))        )*1.2539999996092727e6 
+    #                 hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))          )*1.2539999996092727e6 
 
     #Make central Problem Object
     Centr = Build_Centr_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , NS )
@@ -87,7 +87,7 @@ Obj_scaling = 1e0
 
 ##* Solve Central Problem
 
-    @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe,nS]^2 for nfe in 1:Tf, nS in 1:NS ) + (1e-3)*(Centr_des[1])^2) )
+    @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe,nS]^2 for nfe in 1:NFE, nS in 1:NS ) + (1e-3)*(Centr_des[1])^2) )
 
     optimize!(Centr)
     JuMP.termination_status(Centr)
