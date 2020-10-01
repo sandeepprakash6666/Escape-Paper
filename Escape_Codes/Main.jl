@@ -4,7 +4,7 @@ NCP = 3
 using Plots
 include("OCP.jl")
 
-global NS, NP = 1, 3    #Number of Scenarios, partitions in each scenario
+global NS, NP = 1, 2    #Number of Scenarios, partitions in each scenario
 Obj_scaling = 1e0
 
 ##* Create Model Objects
@@ -13,8 +13,7 @@ Obj_scaling = 1e0
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb = hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))*1.2539999996092727e6 
-    
+    Q_whb =           hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))*1.2539999996092727e6 
     # Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10)), 
     #                 hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))        )*1.2539999996092727e6 
 
@@ -88,7 +87,7 @@ Obj_scaling = 1e0
 
 ##* Solve Central Problem
 
-    @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe,nS] for nfe in 1:Tf, nS in 1:NS ) + 0.1*(Centr_des[1])^2) )
+    @NLobjective(Centr, Min, Obj_scaling*(sum( Centr_u[2,nfe,nS]^2 for nfe in 1:Tf, nS in 1:NS ) + (1e-3)*(Centr_des[1])^2) )
 
     optimize!(Centr)
     JuMP.termination_status(Centr)
@@ -119,7 +118,7 @@ Obj_scaling = 1e0
 
 ##* Solve subproblems using ADMM
 
-    rho = 1.0*Obj_scaling/5 
+    rho = 1.0*Obj_scaling 
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
@@ -171,7 +170,7 @@ Obj_scaling = 1e0
 
 ##* ADMM Iterations
 
-    NIter = 200
+    NIter = 100
     Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #ADMM values - Passing only limited variables as global
         global rho
@@ -196,7 +195,7 @@ Obj_scaling = 1e0
                     # nS = 1 ; nP = 1
                     @NLobjective(SP[(nS,nP)], Min,  
                                     
-                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]^2  for nfe in 1:SP_len)                   + (1e-3/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                     
                                     + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2             for ndes in 1:Ndes)
                                     
@@ -207,7 +206,7 @@ Obj_scaling = 1e0
                     # nS = 1; nP = 3
                     @NLobjective(SP[(nS,nP)], Min,  
                                     
-                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]^2  for nfe in 1:SP_len)                   + (1e-3/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                     
                                     + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes] - z_des[ndes])              + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
                                     
@@ -218,7 +217,7 @@ Obj_scaling = 1e0
                     # nS = 1; nP = 2
                     @NLobjective(SP[(nS,nP)], Min,  
                                     
-                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]  for nfe in 1:SP_len)                     + (0.1/(NS*NP))*(SP_des[(nS,nP)][1])^2)
+                                    Obj_scaling*(sum(SP_u[(nS,nP)][2,nfe]^2  for nfe in 1:SP_len)                   + (1e-3/(NS*NP))*(SP_des[(nS,nP)][1])^2)
                                                     
                                     + sum(  μ_des[nS, nP, ndes] *(SP_des[(nS,nP)][ndes]     - z_des[ndes])          + rho/2*(SP_des[(nS,nP)][ndes]      - z_des[ndes])^2            for ndes in 1:Ndes)
                                     
