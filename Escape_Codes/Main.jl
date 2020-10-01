@@ -2,9 +2,11 @@
 dt = 1.0
 NCP = 3
 using Plots
+gr()
+
 include("OCP.jl")
 
-global NS, NP = 1, 2    #Number of Scenarios, partitions in each scenario
+global NS, NP = 1, 3    #Number of Scenarios, partitions in each scenario
 Obj_scaling = 1e0
 
 ##* Create Model Objects
@@ -108,7 +110,6 @@ Obj_scaling = 1e0
 
     #plot Central solution
 
-    plotly()
     p00 = plot( plot_t_centr, star_T_tes, label = "Ttes - Centr",                                  ylim = [45,75])
     p00 = plot!(plot_t_centr, star_T_phb, label = "Tphb - Centr",                                  ylim = [45,75])
     p00 = plot!(plot_t_centr, star_T_whb, label = "Twhb - Centr",  title = "Diff state, Central",  ylim = [45,75] )
@@ -118,7 +119,7 @@ Obj_scaling = 1e0
 
 ##* Solve subproblems using ADMM
 
-    rho = 1.0*Obj_scaling 
+    rho = Obj_scaling*(1e-1) 
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
@@ -170,7 +171,7 @@ Obj_scaling = 1e0
 
 ##* ADMM Iterations
 
-    NIter = 100
+    NIter = 200
     Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #ADMM values - Passing only limited variables as global
         global rho
@@ -228,7 +229,7 @@ Obj_scaling = 1e0
                     
                 end
                 
-                #solve current subproblem (nS,nP)
+                #region->#*solve current subproblem (nS,nP)
                 optimize!(SP[(nS,nP)])
                 JuMP.termination_status(SP[(nS,nP)])
                 JuMP.solve_time(SP[(nS,nP)]::Model)
@@ -244,10 +245,10 @@ Obj_scaling = 1e0
                 star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
                 star_SP_T_phb[nS,nP,:]  = JuMP.value.(SP_T_phb[(nS,nP)])
                 star_SP_T_whb[nS,nP,:]  = JuMP.value.(SP_T_whb[(nS,nP)])
-
+                #endregion
             end
 
-                # Testing values
+                #region ->Testing values
                 star_SP_Obj
                 star_SP_des
                 star_SP_x0
@@ -256,7 +257,7 @@ Obj_scaling = 1e0
 
                 star_SP_V_tes
                 star_SP_T_tes
-
+                #endregion
         #endregion
 
         #* ADMM Updates
@@ -389,19 +390,19 @@ Obj_scaling = 1e0
         #endregion
 
     end
-        #region ->testing points
-        plot_x0
-        plot_z_des
-        plot_z_diff
+            #region ->testing points
+            plot_x0
+            plot_z_des
+            plot_z_diff
 
-        plot_μ_des
-        plot_μ_diff_L   #!check if adjacent ones sum to zero (with SP3)
-        plot_μ_diff_R
-        #endregion
+            plot_μ_des
+            plot_μ_diff_L   #!check if adjacent ones sum to zero (with SP3)
+            plot_μ_diff_R
+            #endregion
 
 ##* Calculating ADMM - Summary Stats
 
-    #region ->Primal Residual
+    #region ->#*Primal Residual
         plot_prim_res_des = []
         plot_prim_res_diff_L = []
         plot_prim_res_diff_R = []
@@ -447,7 +448,7 @@ Obj_scaling = 1e0
 
     #endregion
 
-    #region ->Dual Residual
+    #region ->#*Dual Residual
         plot_dual_res_des  = []
         plot_dual_res_diff = []
         plot_dual_Residual_Norm = []
@@ -479,7 +480,7 @@ Obj_scaling = 1e0
 
     #endregion
 
-    #region ->Augmented Terms
+    #region ->#*Augmented Terms
         plot_Aug_term   = []
         for nIter in 1:NIter   
             # nIter = 2
@@ -526,7 +527,7 @@ Obj_scaling = 1e0
 
     #endregion
 
-    #region ->Original Objective function value
+    #region ->#*Original Objective function value
         plot_star_f    = []
         for nIter in 1:NIter  
             # nIter = 1 
@@ -566,7 +567,7 @@ Obj_scaling = 1e0
 ##* Plot ADMM itreations Summary
 
     #choose backend for plots
-    plotly()
+    plotlyjs()
     # gr()
 
     #Profiles - Differential States
@@ -583,10 +584,9 @@ Obj_scaling = 1e0
         p21 = plot(plot_Iter, star_V_tes*ones(NIter),                                           label = "des - Centralized",    title = "Des var, rho = $rho")
         for nS in 1:NS, nP in 1:NP
             global p21
-            p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS,nP]  for nIter in 1:NIter],            label = "des - S$nS,P$nP")
+            p21 = plot!(plot_Iter, [plot_V_tes[nIter][nS,nP]  for nIter in 1:NIter],            label = "des - S$nS,P$nP",                                          ylim = [75,120])
         end
 
-        
     #Primal and Dual Infeasibility
         p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",                                         yscale = :log10)
         p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",   title = "Infeasibility, rho = $rho",    yscale = :log10)
@@ -607,23 +607,36 @@ Obj_scaling = 1e0
         p61 = plot(title = "Multipliers - Des, rho = $rho")
         for nS in 1:NS, nP in 1:NP
             global p61
-            p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS,nP]      for nIter in 1:NIter],                    label = "μS$nS,P$nP -des")
+            p61 = plot!(plot_Iter, [plot_μ_des[nIter][nS,nP]      for nIter in 1:NIter],                    label = "S$nS,P$nP")
         end
 
     #multipliers - Differential
         p71 = plot(title = "multipliers_Diff, rho = $rho")
         for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx
             global p71
-            p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS,nP,   nx]   for nIter in 1:NIter],              label = "μ$nS,$nP -diff_R $nx")
-            p71 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS,nP+1, nx]   for nIter in 1:NIter],              label = "μ$nS,$(nP+1) -diff_L $nx")
+            p71 = plot!(plot_Iter, [plot_μ_diff_R[nIter][nS,nP,   nx]   for nIter in 1:NIter],              label = "S$nS,P$nP -R (x$nx)")
+            p71 = plot!(plot_Iter, [plot_μ_diff_L[nIter][nS,nP+1, nx]   for nIter in 1:NIter],              label = "S$nS,P$(nP+1) -L (x$nx)")
         end
 
     #rho updates
         p81 = plot(plot_Iter, plot_rho[2:end],                                                                                                  title = "Rho updates")
 
+    #region-> #*Save Plots as PNG
+        savefig(p00, "p00")        
+        
+        savefig(p11, "p11") 
+        savefig(p21, "p21") 
+        savefig(p31, "p31") 
+        savefig(p41, "p41") 
 
+        savefig(p61, "p61") 
+        savefig(p71, "p71") 
+        savefig(p81, "p81") 
+
+    #endregion
 
 ##* Display Plots
+p00
 p11
 p21
 p31
