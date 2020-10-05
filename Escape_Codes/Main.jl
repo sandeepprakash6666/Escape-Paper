@@ -123,10 +123,21 @@ Obj_scaling = 1e0
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
-    z_des_us = [100.0]
+    z_des_us  = [100.0]
     z_diff_us = [60.0; 60.0; 60.0]
 
         #region-> Building arrays based on NS and NP
+                #region-> Loading parameters
+                    Bounds = Var_bounds()
+                        Nx        = Bounds.Nx
+                        Nu        = Bounds.Nu
+                        Ndes      = Bounds.Ndes
+                        us_x      = Bounds.us_x
+                        ls_x      = Bounds.ls_x
+                        ls_des    = Bounds.ls_des
+                        us_des    = Bounds.us_des 
+                #endregion
+
             #Global copy in central coordinator (z)
             z_des  = NaN.*zeros(Ndes)
             z_diff = NaN.*zeros(NS, NP-1, Nx)
@@ -233,21 +244,21 @@ Obj_scaling = 1e0
                 end
                 
                 #region->#*solve current subproblem (nS,nP)
-                optimize!(SP[(nS,nP)])
-                JuMP.termination_status(SP[(nS,nP)])
-                CPU_time_SP[nS,nP] = JuMP.solve_time(SP[(nS,nP)]::Model)
-                star_SP_Obj[nS,nP] = JuMP.objective_value(SP[(nS,nP)])
+                    optimize!(SP[(nS,nP)])
+                    JuMP.termination_status(SP[(nS,nP)])
+                    CPU_time_SP[nS,nP] = JuMP.solve_time(SP[(nS,nP)]::Model)
+                    star_SP_Obj[nS,nP] = JuMP.objective_value(SP[(nS,nP)])
 
-                #solution from SP (nS,nP)
-                star_SP_des[nS, nP, :]  = JuMP.value.(SP_des[(nS,nP)])
-                star_SP_x0[nS, nP, :]   = JuMP.value.(SP_x0[(nS,nP)])
-                star_SP_x[nS, nP, :, :] = JuMP.value.(SP_x[(nS,nP)])[:,:,NCP]
-                star_SP_u[nS, nP, :, :] = JuMP.value.(SP_u[(nS,nP)])
-            
-                star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
-                star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
-                star_SP_T_phb[nS,nP,:]  = JuMP.value.(SP_T_phb[(nS,nP)])
-                star_SP_T_whb[nS,nP,:]  = JuMP.value.(SP_T_whb[(nS,nP)])
+                    #solution from SP (nS,nP)
+                    star_SP_des[nS, nP, :]  = JuMP.value.(SP_des[(nS,nP)])
+                    star_SP_x0[nS, nP, :]   = JuMP.value.(SP_x0[(nS,nP)])
+                    star_SP_x[nS, nP, :, :] = JuMP.value.(SP_x[(nS,nP)])[:,:,NCP]
+                    star_SP_u[nS, nP, :, :] = JuMP.value.(SP_u[(nS,nP)])
+                
+                    star_SP_V_tes[nS,nP]    = JuMP.value(SP_V_tes[(nS,nP)])
+                    star_SP_T_tes[nS,nP,:]  = JuMP.value.(SP_T_tes[(nS,nP)])
+                    star_SP_T_phb[nS,nP,:]  = JuMP.value.(SP_T_phb[(nS,nP)])
+                    star_SP_T_whb[nS,nP,:]  = JuMP.value.(SP_T_whb[(nS,nP)])
                 #endregion
             end
 
