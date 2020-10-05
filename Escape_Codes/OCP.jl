@@ -4,7 +4,7 @@ using Ipopt
 
 
 ##* Reading Model Parameters from Module
-include("parameters.jl")
+include("parameters.jl")      #todo - update parameters as dictionaries similar to template file
       using Main.Bounds     
             x_guess = Bounds.x0;    z_guess = Bounds.z0;    u_guess = Bounds.u0;    des_guess = Bounds.des0
             Nx = Bounds.Nx;         Nz = Bounds.Nz;         Nu = Bounds.Nu;         Ndes = Bounds.Ndes 
@@ -137,7 +137,6 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                               end
                         end
 
-
                   # Objective- is set from main file
                   @NLobjective(model1, Min, sum( u[2, nfe] for nfe in 1:NFE)  +    0.1*(des[1]^2)  )    #Duty in KJ
 
@@ -169,7 +168,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                   #Constr_Ineq999[nfe=1:NFE, ncp=1:NCP], alg[999,nfe,ncp] ==
             end)
 
-                        #region-> std code -> Collocation Equations
+                        #region-> #generic code -> Collocation Equations for differential states
                               collMat = Collocation_Matrix()
                               @NLconstraints(model1, begin
                                     #Collocation Equation for Differential Equations (scaled form)
@@ -194,7 +193,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                   #Getting Varables directly from expressions - Unscaled Units
                   star_x0_us = star_x0            .*  (us_x - ls_x) + ls_x
 
-                  star_V_tes = JuMP.value(V_tes)            #! why no need for value. here
+                  star_V_tes = JuMP.value(V_tes)            
                   star_T_tes = JuMP.value.(T_tes[:, NCP])
                   star_T_phb = JuMP.value.(T_phb[:, NCP])
                   star_T_whb = JuMP.value.(T_whb[:, NCP])
