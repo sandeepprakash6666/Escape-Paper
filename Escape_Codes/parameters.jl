@@ -7,7 +7,7 @@ function Var_bounds()
     z0_us = [60.0]
     u0_us = [0.0;   0.0]
 
-    des0_us = [100.0]
+    des0_us = [95.0]
 
     ##? Lower and Upper scales
     ls_x = [0.0;    0.0;    0.0]

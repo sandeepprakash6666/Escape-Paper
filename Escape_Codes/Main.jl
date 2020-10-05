@@ -119,11 +119,11 @@ Obj_scaling = 1e0
 
 ##*Solve subproblems using ADMM
 
-    rho = Obj_scaling*(1e-2) 
+    rho = Obj_scaling*(1e-1) 
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
-    z_des_us  = [100.0]
+    z_des_us  = [95.0]
     z_diff_us = [60.0; 60.0; 60.0]
 
         #region-> Building arrays based on NS and NP
@@ -184,7 +184,7 @@ Obj_scaling = 1e0
 
 ##*ADMM Iterations
 
-    NIter = 100
+    NIter = 50
     Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #ADMM values - Passing only limited variables as global
         global rho
@@ -356,12 +356,12 @@ Obj_scaling = 1e0
         #endregion
 
         #region ->#*rho update heuristic
-            if prim_Residual_Norm       > 10*dual_Residual_Norm
-                rho = rho*2
-            elseif dual_Residual_Norm   > 10*prim_Residual_Norm
-                rho = rho/2
-            else
-            end
+            # if prim_Residual_Norm       > 10*dual_Residual_Norm
+            #     rho = rho*2
+            # elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+            #     rho = rho/2
+            # else
+            # end
         #endregion
 
         #region ->#*Appending for Plotting
