@@ -1,20 +1,16 @@
 
 
 
-array1 = []
+t1 = [1 2 3 4]
+t2 = [1,2,3,4]
+t3 = [1;2;3;4]
+t4 = transpose([1 2 3 4])
+t5 = [1 2 3 4; 5 6 7 8]
 
-iter_obj = [1, 2, 3]
-
-append!(array1, iter_obj)
-
-
-k2 = [1 2 3; 4 5 6]
-
-
-append!(array1, k2)
+M11 = []
 
 
-
+M = cat(t5, [], dims = 2)
 # using Plots
 
 # @userplot CirclePlot

@@ -1,0 +1,148 @@
+% ---------------------------------------------------------------
+%    escape31.sty
+%    by Metin Turkay
+% ---------------------------------------------------------------
+%    based on the escpe_25.sty template
+%    by Heinz.Preisig@chemeng.ntnu.no
+% ---------------------------------------------------------------
+% no guarantee is given that the format corresponds perfectly to
+% ESCAPE Proceedings, but most features should be ok.
+% ---------------------------------------------------------------
+
+
+\typeout{ESCAPE Proceedings Style `escape31.sty'.}
+
+
+% fonts
+\usepackage{mathptmx}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{textcomp}
+
+%header authors
+\usepackage{authblk}
+\usepackage{fancyhdr}
+
+\usepackage[text={12.5cm,20cm},
+		a4paper,
+		headsep=0.7cm,
+%AEC		centering,
+        top=4.0cm,left=4.2cm, %AEC
+%		showframe,
+		showcrop,
+		nofoot,
+		nomarginpar
+		]{geometry}
+
+% paragraphstyle
+\parindent=0pt
+\parskip=6pt
+
+% header
+\def\headerbox{%
+\begin{picture}(0,0)
+ \put(0,25){\vbox to 9mm{\small%
+   \EDITORS\ Metin Türkay, Erdal Aydin (Eds.)\\
+   Proceedings of the \CONFERENCE \\
+   \DATE,\ \YEAR, \PLACE. \copyright\ \YEAR\ \PUBLISHER\ All rights reserved.}}
+\end{picture}}
+
+
+
+%% title page -----------------------------------------------------------------
+\setlength{\affilsep}{4pt}
+
+\def\@maketitle
+   {%
+   \vbox to 0mm{\hfill} \vskip-2mm%
+   \headerbox%
+      %{\vskip-5mm\LARGE \bf \@title \vskip1mm}
+      {\vskip-5mm\fontsize{16pt}{20pt} \bf \@title \vskip1mm}
+      %{\vskip0mm\large\lineskip .5em\@author}%
+      {\vskip0mm\fontsize{11pt}{13.7pt}\lineskip .5em\@author}%
+      {\@affiliation} %
+      {\newline\normalsize\@email} %
+      \vspace*{6pt}				% additional empty line at the end of the title block
+   \global}
+
+\def\abstract
+   {\vspace*{3mm}%
+   \leftline{\fontsize{11pt}{13.7pt}\bf Abstract}%
+   \vspace*{-2pt}%
+   }
+
+\def\endabstract
+   {
+   %  \par\vspace*{6pt} %				% additional empty line at the end of the abstract
+     \par\vspace*{0pt} %				% additional empty line at the end of the abstract
+   }
+
+\def\Keywords#1{\textbf{Keywords:} #1 \vskip12pt
+	\thispagestyle{empty} 
+	\pagestyle{fancy}}
+
+% affiliation
+\renewcommand\Authands{ and }
+\renewcommand\Affilfont{\itshape\normalsize}
+%\renewcommand\Affilfont{\itshape\normalsize\vspace*{3pt}}
+
+\def\affiliation#1{\gdef\@affiliation{#1}} \gdef\@affiliation{}
+
+\def\email#1{\gdef\@email{\normalsize\textit{#1}}} \gdef\@email{}
+
+%correct heading spacing and type
+\renewcommand\section{\@startsection {section}{1}{\z@}
+   {10pt plus 1pt minus 1pt}{1mm plus 2pt minus 2pt} {\fontsize{11pt}{13.7pt}\bf}}%\large\bf}}
+\renewcommand\subsection{\@startsection {subsection}{2}{\z@}
+   {8pt plus 0.1mm minus 3pt}{1pt} {\it}}
+\renewcommand\subsubsection{\@startsection {subsubsection}{3}{\z@}
+   {8mm plus 0.1mm minus 3pt}{1pt} {\it}}
+
+% section titles
+% add the period after section numbers
+\let\oldsection=\section
+\let\oldsubsection=\subsection
+\let\oldsubsubsection=\subsubsection
+\let\oldparagraph=\paragraph
+
+\renewcommand{\section}[1]{\oldsection{\hskip -1em.~#1}}
+\renewcommand{\subsection}[1]{\oldsubsection{\hskip -1em.~#1}}
+\renewcommand{\subsubsection}[1]{\oldsubsubsection{\hskip -1em.~#1}}
+\renewcommand{\paragraph}[1]{\par\hskip -0em{\textbf{#1:\ }}\ }
+
+\renewenvironment{thebibliography}[1]%
+{\stepcounter{section}%
+  \vspace*{1em}
+  \leftline{\large\bf ~References}%
+  \vspace*{2pt plus 2pt minus 2pt}%
+   \list{references}{\itemindent-\labelwidth\itemsep=0pt\parskip=0pt\footnotesize}%
+}%
+{\endlist\vskip 1em%
+}
+
+
+% header and footers
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\def\HeaderTitle#1{\global\def\titlestr{\it#1}}
+\def\HeaderAuthor#1{\global\def\authorstr{\it#1}}
+
+\lhead[\hskip0mm\thepage]{\titlestr}
+\rhead[even]{odd}
+\rhead[\authorstr]{\thepage}
+\rfoot{}
+\cfoot{}
+\lfoot{}
+
+%% Conference and editors %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\CONFERENCE{31\textsuperscript{th} European Symposium on Computer Aided Process Engineering}
+\def\EDITORS{Metin Türkay}
+\def\PUBLISHER{Elsevier B.V.}
+\def\DATE{June 6\textsuperscript{th} to 9\textsuperscript{th}}
+\def\YEAR{2021}
+\def\PLACE{Istanbul, Turkey}
+
+% end of file  escape_xx.sty
+% ---------------------------------------------------------------
