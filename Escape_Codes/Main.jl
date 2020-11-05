@@ -15,9 +15,9 @@ Obj_scaling = 1e0
 
     #make Profiles
     plot_t_centr = collect(0: dt: Tf)
-    Q_whb =           hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))           *1.2539999996092727e6 
-    # Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10),        1.2*ones(1,10), 1.0*ones(1,10), 0.8*ones(1,10)), 
-    #                 hcat(1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10),        1.3*ones(1,10), 1.0*ones(1,10), 0.7*ones(1,10))          )*1.2539999996092727e6 
+    Q_whb =           hcat(1.2*ones(1,10), 1.0*ones(1,10),      0.8*ones(1,10),1.3*ones(1,10),      1.0*ones(1,10), 0.7*ones(1,10))           *1.2539999996092727e6 
+    # Q_whb = vcat(   hcat(1.2*ones(1,10), 1.0*ones(1,10),        0.8*ones(1,10),1.3*ones(1,10),      1.0*ones(1,10), 0.7*ones(1,10)), 
+    #                 hcat(1.3*ones(1,10), 1.0*ones(1,10),        0.7*ones(1,10),1.3*ones(1,10),      1.0*ones(1,10), 0.7*ones(1,10))          )*1.2539999996092727e6 
 
     #Make central Problem Object
     Centr = Build_Centr_OCP(Q_whb, plot_t_centr[end] - plot_t_centr[1] , NS )
@@ -124,7 +124,7 @@ Obj_scaling = 1e0
     eps_primal = 1e-6
     eps_dual   = 1e-6
 
-    z_des_us  = [95.0]
+    z_des_us  = [100.0]
     z_diff_us = [60.0; 60.0; 60.0]
 
         #region-> Building arrays based on NS and NP
@@ -187,7 +187,7 @@ Obj_scaling = 1e0
 
 ##*ADMM Iterations
 
-    NIter = 50
+    NIter = 100
     Tot_time_in_ADMM = @elapsed for ADMM_k = 1:NIter
         #ADMM values - Passing only limited variables as global
         global rho_des, rho_diff
@@ -321,8 +321,12 @@ Obj_scaling = 1e0
             prim_res_des
             prim_res_diff_L
             prim_res_diff_R
+
+            prim_Residual_Norm_des  = (sum(prim_res_des[nS,nP,ndes]^2                                                       for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes)               )^0.5
+            prim_Residual_Norm_diff = (sum(prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2                        for nS in 1:NS, nP in 1:NP, nx in 1:Nx)                     )^0.5
+
         #endregion
-        prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes, nx in 1:Nx ) )^0.5
+        prim_Residual_Norm = ( sum(prim_res_des[nS,nP,ndes]^2 + prim_res_diff_L[nS,nP,nx]^2 + prim_res_diff_R[nS,nP,nx]^2   for nS in 1:NS, nP in 1:NP,   ndes in 1:Ndes, nx in 1:Nx )  )^0.5
 
         #region ->#*Dual Residuals
             #Design
@@ -339,8 +343,12 @@ Obj_scaling = 1e0
 
             dual_res_des
             dual_res_diff
+
+            dual_Residual_Norm_des  = (sum(dual_res_des[ndes]^2                                                             for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes )              )^0.5
+            dual_Residual_Norm_diff = (sum(dual_res_diff[nS,nP,nx]^2                                                        for nS in 1:NS, nP in 1:NP-1, nx in 1:Nx)                   )^0.5
+
         #endregion
-        dual_Residual_Norm = ( sum(dual_res_des[ndes]^2       + dual_res_diff[nS,nP,nx]^2                                   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx) )^0.5
+        dual_Residual_Norm = ( sum(dual_res_des[ndes]^2       + dual_res_diff[nS,nP,nx]^2                                   for nS in 1:NS, nP in 1:NP-1, ndes in 1:Ndes, nx in 1:Nx)   )^0.5
 
         #region ->#*μ Update
             for nS in 1:NS, nP in 1:NP, ndes in 1:Ndes
@@ -359,15 +367,22 @@ Obj_scaling = 1e0
         #endregion
 
         #region ->#*rho update heuristic
-            # if prim_Residual_Norm       > 10*dual_Residual_Norm
-                # rho_des  = rho_des*2
-                # rho_diff = rho_diff*2
-            # elseif dual_Residual_Norm   > 10*prim_Residual_Norm
+            #Update rho for Design
+            # if prim_Residual_Norm_des       > 10*dual_Residual_Norm_des
+            #     rho_des  = rho_des*2
+            # elseif dual_Residual_Norm_des   > 10*prim_Residual_Norm_des
             #     rho_des  = rho_des/2
-            #     rho_diff = rho_diff/2
-
             # else
             # end
+
+            #Update rho for Differential
+            # if prim_Residual_Norm_diff      > 10*dual_Residual_Norm_diff
+            #     rho_diff = rho_diff*2
+            # elseif dual_Residual_Norm_diff  > 10*prim_Residual_Norm_diff
+            #     rho_diff = rho_diff/2
+            # else 
+            # end
+
         #endregion
 
         #region ->#*Appending for Plotting
@@ -413,6 +428,7 @@ Obj_scaling = 1e0
         #endregion
 
     end
+    
             
         #region ->testing points
             plot_x0
@@ -596,13 +612,32 @@ NIter = size(plot_x0, 1)    #in case more iterations run manually
     # gr()
 
     #Profiles - Differential States
-        p11 = plot(title = "Diff states, ADMM, rho = ($rho_des,$rho_diff)")
-            for nS in 1:NS, nP in 1:NP
+        p11 = plot(title = "Diff states, ADMM iteration 1, rho = ($rho_des,$rho_diff)")
+            for nS in 1:1, nP in 1:NP
                 global p11
-                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,1]*100, plot_T_tes[end][nS,nP,:]) ,          label = "Ttes - S$nS,P$nP",  ylim = [45,75])
-                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,2]*100, plot_T_phb[end][nS,nP,:]) ,          label = "Tphb - S$nS,P$nP",  ylim = [45,75])
-                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,3]*100, plot_T_whb[end][nS,nP,:]) ,          label = "Twhb - S$nS,P$nP",  ylim = [45,75])
+                iter = 1
+                p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Ttes - S$nS,P$nP",  ylim = [45,75])
+                # p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,2]*100, plot_T_phb[end][nS,nP,:]) ,          label = "Tphb - S$nS,P$nP",  ylim = [45,75])
+                # p11 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,3]*100, plot_T_whb[end][nS,nP,:]) ,          label = "Twhb - S$nS,P$nP",  ylim = [45,75])
             end
+        
+        p12 = plot(title = "Diff states, ADMM iteration 10, rho = ($rho_des,$rho_diff)")
+            for nS in 1:1, nP in 1:NP
+                global p12
+                iter = 10
+                p12 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Ttes - S$nS,P$nP",  ylim = [45,75])
+                # p12 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,2]*100, plot_T_phb[end][nS,nP,:]) ,          label = "Tphb - S$nS,P$nP",  ylim = [45,75])
+                # p12 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,3]*100, plot_T_whb[end][nS,nP,:]) ,          label = "Twhb - S$nS,P$nP",  ylim = [45,75])
+            end
+
+        p13 = plot(title = "Diff states, ADMM iteration $NIter, rho = ($rho_des,$rho_diff)")
+            for nS in 1:1, nP in 1:NP
+                global p11
+                p13 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,1]*100, plot_T_tes[end][nS,nP,:]) ,          label = "Ttes - S$nS,P$nP",  ylim = [45,75])
+                # p13 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,2]*100, plot_T_phb[end][nS,nP,:]) ,          label = "Tphb - S$nS,P$nP",  ylim = [45,75])
+                # p13 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[end][nS,nP,3]*100, plot_T_whb[end][nS,nP,:]) ,          label = "Twhb - S$nS,P$nP",  ylim = [45,75])
+            end
+
 
     #Iteration Profiles - Design Variable
         plot_Iter = collect(1:NIter)
@@ -615,8 +650,8 @@ NIter = size(plot_x0, 1)    #in case more iterations run manually
     #Primal and Dual Infeasibility
         p31 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",                                                         yscale = :log10)
         p31 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",   title = "Infeasibility, rho = ($rho_des,$rho_diff)",    yscale = :log10)
-        p31 = plot!(plot_Iter, eps_primal.*ones(NIter),                                         label = "primal_limit",                                                                 line = :dot   )
-        p31 = plot!(plot_Iter, eps_dual.*ones(NIter),                                           label = "dual limit",                                                                   line = :dot)
+        # p31 = plot!(plot_Iter, eps_primal.*ones(NIter),                                         label = "primal_limit",                                                                 line = :dot   )
+        # p31 = plot!(plot_Iter, eps_dual.*ones(NIter),                                           label = "dual limit",                                                                   line = :dot)
 
     #Objective Function Values
         p41 = plot(plot_Iter,  [ sum(plot_star_f[nIter][nS,nP]  for nS in 1:NS, nP in 1:NP) for nIter in 1:NIter] , label = "f - Distribuited")
@@ -650,36 +685,81 @@ NIter = size(plot_x0, 1)    #in case more iterations run manually
     #CPU Times
         p91 = plot(title = "CPU Total (seconds)", seriestype = :bar    )
         p91 = bar!(["ADMM Sequentially"] ,              [sum(sum(plot_CPU_time_SP))], )
-        p91 = bar!(["ADMM perfect parallelization"],    [ sum( maximum(plot_CPU_time_SP[nIter]) for nIter in 1:NIter)])
-        p91 = bar!(["Central solver"],                       [CPU_time_Tot_Centr])
+        p91 = bar!(["ADMM perfect parallelization"],    [sum(maximum(plot_CPU_time_SP[nIter]) for nIter in 1:NIter)])
+        p91 = bar!(["Central solver"],                  [CPU_time_Tot_Centr])
 
+        display(Tot_time_in_ADMM)
+
+    #z-Profiles
+        p101 = plot(title = "z in Iters")
+        for nS in 1:1, nP in 1:NP-1
+            global p101
+            p101 = plot!(plot_Iter,[plot_z_diff[nIter][nS,nP,1] for nIter in 1:NIter] , label = "T_tes @end of S$nS,P$nP")
+        end
+            p101 = plot!(plot_Iter,[sum(plot_z_des[nIter][1])   for nIter in 1:NIter] ,            label = "V_tes")
 
     #region-> #*Save Plots as PNG
-        savefig(p00, "p00")        
+        # savefig(p00, "p00")        
         
-        savefig(p11, "p11") 
-        savefig(p21, "p21") 
-        savefig(p31, "p31") 
-        savefig(p41, "p41") 
+        # savefig(p11, "p11") 
+        # savefig(p12, "p12") 
+        # savefig(p13, "p13") 
 
-        savefig(p61, "p61") 
-        savefig(p71, "p71") 
-        savefig(p81, "p81") 
-        savefig(p91, "p91") 
+        # savefig(p21, "p21") 
+        # savefig(p31, "p31") 
+        # savefig(p41, "p41") 
+
+        # savefig(p61, "p61") 
+        # savefig(p71, "p71") 
+        # savefig(p81, "p81") 
+        # savefig(p91, "p91") 
 
     #endregion
 
 ##*Display Plots
 # p00
-p11
-p21
+
+
 p31
+p81
+
+p21
+
 p41
 # p51
-p61
-p71
-p81
-p91
+
+p61   #multipliers - Des
+p71   #multipliers - Diff
+
+p101  #z_differential
+
+#Differential states snapshots
+p11
+p12
+p13
 
 
-display(Tot_time_in_ADMM)
+# p91
+
+
+##*Plotting for Report 
+    #region
+
+    #Infeasibility
+    plot_rep_1 = plot(title = "Residuals")
+    plot_rep_1 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",                                                         yscale = :log10)
+    plot_rep_1 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",   title = "Infeasibility, rho = ($rho_des,$rho_diff)",    yscale = :log10)
+
+
+    #Design 
+    p102 = plot(title = "Des var, rho = ($rho_des,$rho_diff)", ylim = [75,120])
+    p102 = plot!(plot_Iter, star_V_tes*ones(NIter),                                           label = "des - Centralized",    title = "Des var, rho = ($rho_des,$rho_diff)")
+    p102 = plot!(plot_Iter,[sum(plot_V_tes[nIter])/(NS*NP) for nIter in 1:NIter] ,            label = "V_tes")
+
+    savefig(p102, "p102") 
+
+
+    #ADMM iterations snapshots
+    plot(p11, p12, p13, layout = (1,3))
+
+    #endregion

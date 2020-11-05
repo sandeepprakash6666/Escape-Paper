@@ -166,6 +166,7 @@ function Build_OCP(Q_whb, Tf, (ns,np) )
                                     fix(x0[nx], x_guess[nx], force = true)
                               end
                         end
+                  
 
                   # Objective- is set from main file
                   # @NLobjective(model1, Min, sum( u[2, nfe] for nfe in 1:NFE)  +    0.1*(des[1]^2)  )    #Duty in KJ
