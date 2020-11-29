@@ -1,26 +1,37 @@
 
 
-using Plots
 
-@userplot CirclePlot
-@recipe function f(cp::CirclePlot)
-    x, y, i = cp.args
-    n = length(x)
-    inds = circshift(1:n, 1 - i)
-    # linewidth --> range(0, 10, length = n)
-    # seriesalpha --> range(0, 1, length = n)
-    # aspect_ratio --> 1
-    # label --> false
-    x[inds], y[inds]
-end
+t1 = [1 2 3 4]
+t2 = [1,2,3,4]
+t3 = [1;2;3;4]
+t4 = transpose([1 2 3 4])
+t5 = [1 2 3 4; 5 6 7 8]
 
-n = 150
-t = range(0, 2π, length = n)
-x = sin.(t)
-y = cos.(t)
+M11 = []
 
-anim = @animate for i ∈ 1:n
-    circleplot(x, y, i)
-end
 
-gif(anim, "anim_fps15.gif", fps = 15)
+M = cat(t5, [], dims = 2)
+# using Plots
+
+# @userplot CirclePlot
+# @recipe function f(cp::CirclePlot)
+#     x, y, i = cp.args
+#     n = length(x)
+#     inds = circshift(1:n, 1 - i)
+#     # linewidth --> range(0, 10, length = n)
+#     # seriesalpha --> range(0, 1, length = n)
+#     # aspect_ratio --> 1
+#     # label --> false
+#     x[inds], y[inds]
+# end
+
+# n = 150
+# t = range(0, 2π, length = n)
+# x = sin.(t)
+# y = cos.(t)
+
+# anim = @animate for i ∈ 1:n
+#     circleplot(x, y, i)
+# end
+
+# gif(anim, "anim_fps15.gif", fps = 15)push
