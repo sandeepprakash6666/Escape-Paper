@@ -114,7 +114,7 @@ Obj_scaling = 1e0
     p00 = plot!(plot_t_centr, star_T_phb, label = "Tphb - Centr",                                  ylim = [45,75])
     p00 = plot!(plot_t_centr, star_T_whb, label = "Twhb - Centr",  title = "Diff state, Central",  ylim = [45,75] )
 
-    println("Central Solution is $star_V_tes")
+    println("Central Solution for volume is $star_V_tes m3")
     p00
 
 ##*Solve subproblems using ADMM
@@ -608,8 +608,9 @@ NIter = size(plot_x0, 1)    #in case more iterations run manually
 ##*Plot ADMM itreations Summary
 
     #backend for plots
-    # plotlyjs()
+    plotlyjs()
     # gr()
+    # pyplot()
 
     #Profiles - Differential States
         p11 = plot(title = "Diff states, ADMM iteration 1, rho = ($rho_des,$rho_diff)")
@@ -717,49 +718,117 @@ NIter = size(plot_x0, 1)    #in case more iterations run manually
     #endregion
 
 ##*Display Plots
-# p00
+    # p00
 
 
-p31
-p81
+    p31
+    p81
 
-p21
+    p21
 
-p41
-# p51
+    p41
+    # p51
 
-p61   #multipliers - Des
-p71   #multipliers - Diff
+    p61   #multipliers - Des
+    p71   #multipliers - Diff
 
-p101  #z_differential
+    p101  #z_differential
 
-#Differential states snapshots
-p11
-p12
-p13
+    #Differential states snapshots
+    p11
+    p12
+    p13
 
+    # p91
 
-# p91
+##*Plotting for Paper 
+#region
 
+  
 
-##*Plotting for Report 
-    #region
+    #region#*Setting Defaults for Plots
+        using Plots
+        # pyplot()
+        gr()
+        default(titlefont = (20, "times"), titlelocation = :center, 
+                legendfontsize = 12, guidefont = (14, :black), tickfont = (14, :black), 
+                # legend = :topright, 
+                # right_margin = [0 0],
+                linewidth = 2, markersize = 3, markerstrokewidth = 0,
+                
+                framestyle = :box, gridstyle = :dot)
+    #endregion
 
     #Infeasibility
-    plot_rep_1 = plot(title = "Residuals")
-    plot_rep_1 = plot( plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "primal infeasibility",                                                         yscale = :log10)
-    plot_rep_1 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],          label = "dual infeasibility",   title = "Infeasibility, rho = ($rho_des,$rho_diff)",    yscale = :log10)
+    plot_rep_11 = plot(title = "Residuals", ylabel = "Infeasibility", xlabel = "Iteration", 
+                        ylims = [1e-8,1e0], legend = (0.745,0.925))
+    plot_rep_11 = plot!(plot_Iter, [plot_prim_Residual_Norm[nIter]  for nIter in 1:NIter],         label = "Primal Residual",   yscale = :log10,
+                        seriescolor = :red, markershape = :circle)
+    
+    plot_rep_11 = plot!(plot_Iter, [plot_dual_Residual_Norm[nIter]  for nIter in 1:NIter],         label = "Dual Residual",     yscale = :log10,   
+                        seriescolor = :green, markershape = :x, linestyle = :dash)
+
+    savefig(plot_rep_11, "Residuals_Plot.svg")
 
 
+
+##
     #Design 
-    p102 = plot(title = "Des var, rho = ($rho_des,$rho_diff)", ylim = [75,120])
-    p102 = plot!(plot_Iter, star_V_tes*ones(NIter),                                           label = "des - Centralized",    title = "Des var, rho = ($rho_des,$rho_diff)")
-    p102 = plot!(plot_Iter,[sum(plot_V_tes[nIter])/(NS*NP) for nIter in 1:NIter] ,            label = "V_tes")
+    plot_rep_12 = plot(title = "Optimal Design - Vᵗᵉˢ", ylabel = "Volume (m³)", xlabel = "Iteration", 
+                        ylims = [75,120], yticks = 75:15:120, legend = (0.68,0.93))
+    plot_rep_12 = plot!(plot_Iter, star_V_tes*ones(NIter),                                          label = "Centralized solution",
+                        linestyle = :dash, seriescolor = :green)
+    plot_rep_12 = plot!(plot_Iter,[sum(plot_V_tes[nIter])/(NS*NP) for nIter in 1:NIter] ,           label = "Distributed solution",              
+                        seriescolor = :red, markershape = :circle)                 
 
-    savefig(p102, "p102") 
+    savefig(plot_rep_12, "Volume_Plot.svg") 
 
-
+##
     #ADMM iterations snapshots
-    plot(p11, p12, p13, layout = (1,3))
+    iter = 1
+    plot_rep_21 = plot(title = "ADMM iteration $iter", ylabel = "Temperature (ᵒC)", xlabel = "Timestep", 
+                        ylim = [55,70], yticks = 55:5:70, legend = (0.09,0.928))
+        nS = 1; nP = 1
+        plot_rep_21 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :circle)
+        nS = 1; nP = 2
+        plot_rep_21 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :+, linestyle = :dash)        
+        nS = 1; nP = 3
+        plot_rep_21 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :x)
+
+    iter = 10
+    plot_rep_22 = plot(title = "ADMM iteration $iter", ylabel = "Temperature (ᵒC)", xlabel = "Timestep", 
+                        ylim = [55,70], yticks = 55:5:70, legend = (0.09,0.928))
+        nS = 1; nP = 1
+        plot_rep_22 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :circle)
+        nS = 1; nP = 2
+        plot_rep_22 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :+, linestyle = :dash)        
+        nS = 1; nP = 3
+        plot_rep_22 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :x)
+
+    iter = 100
+    plot_rep_23 = plot(title = "ADMM iteration $iter", ylabel = "Temperature (ᵒC)", xlabel = "Timestep", 
+                        ylim = [55,70], yticks = 55:5:70, legend = (0.09,0.928))
+        nS = 1; nP = 1
+        plot_rep_23 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :circle)
+        nS = 1; nP = 2
+        plot_rep_23 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :+, linestyle = :dash)        
+        nS = 1; nP = 3
+        plot_rep_23 = plot!(plot_t_SP[(nS,nP)], vcat(plot_x0[iter][nS,nP,1]*100, plot_T_tes[iter][nS,nP,:]) ,          label = "Tᵗᵉˢ - Partition $nP",  
+                            markershape = :x)
+
+
+
+
+    savefig(plot_rep_21, "Iteration Snapshot 1.svg")
+    savefig(plot_rep_22, "Iteration Snapshot 10.svg")
+    savefig(plot_rep_23, "Iteration Snapshot 100.svg")
 
     #endregion

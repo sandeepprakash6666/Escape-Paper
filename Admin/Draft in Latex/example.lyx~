@@ -29,7 +29,7 @@
 
 
 %% Escape/PSE styles
-\usepackage{left_eq}% To get the equation left aligned, this is ugly but required :-)
+\usepackage{left_eq} % To get the equation left aligned, this is ugly but required :-)
 \usepackage{escape31}% Stylefile from Escape
 
 
@@ -42,7 +42,7 @@
 
 
 %% math packages
-
+\usepackage{amsmath}
 
 %% >>>>>>>>>>>>>>>> user definitions BIBLIOGRAPHY & DEFS <<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -56,23 +56,25 @@
 
 
 % ================================================================================
-\title{Type the title of your paper}
+\title{Multi-scenario Design Optimization using ADMM of a Thermal Energy Storage System}
 %
- \author[a]{Anne Firstauthor}
- \author[b]{Tim B. Secondauthor }
- \author[a,b,*]{James Q. Thirdauthor}
- \affil[a]{First affiliation, Address, City and Postcode, Country}
- \affil[b]{Second affiliation, Address, City and Postcode, Country}
- \email{emailOfTheCorrespondingAuthor@organization.countryCode}
+ \author[a]{Sandeep Prakash}
+ \author[a]{Dinesh Krishnamoorthy }
+ \author[a,*]{Johannes Jäschke}
+ \affil[a]{Norwegian University of Science and Technology, Trondheim 7491, Norway}
+ \email{johannes.jaschke@ntnu.no}
  
- \HeaderTitle{Type the title of your paper}
- \HeaderAuthor{A. Firstauthor et al.}
+ \HeaderTitle{Multi-scenario Design Optimization using ADMM of a Thermal Energy Storage System}
+ \HeaderAuthor{S. Prakash et al.}
 
 % ==================================== title ====================================
 \end_preamble
 \use_default_options false
+\begin_modules
+subequations
+\end_modules
 \maintain_unincluded_children false
-\language english
+\language british
 \language_package default
 \inputencoding auto
 \fontencoding default
@@ -122,6 +124,10 @@
 \shortcut idx
 \color #008000
 \end_index
+\leftmargin 4.25cm
+\topmargin 5.1cm
+\rightmargin 4.25cm
+\bottommargin 4.19cm
 \secnumdepth 3
 \tocdepth 3
 \paragraph_separation indent
@@ -129,7 +135,7 @@
 \is_math_indent 1
 \math_indentation default
 \math_numbering_side default
-\quotes_style english
+\quotes_style british
 \dynamic_quotes 0
 \papercolumns 1
 \papersides 2
@@ -214,37 +220,16 @@ status open
 \end_layout
 
 \begin_layout Abstract
-
-\series bold
-IMPORTANT
-\series default
-: for the EXACT instructions how to write the paper, please refer to the
- MS Word template for the paper!
-\end_layout
-
-\begin_layout Abstract
-
-\series bold
-IMPORTANT
-\series default
-: The manuscript must have six pages (including references), not more and
- not less.
-\end_layout
-
-\begin_layout Abstract
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-
-\backslash
-blindtext
-\end_layout
-
-\end_inset
-
- 
+Using nonlinear models to represent multi-scenario design optimization problems
+ can lead to very large NLPs that can become intractable to be solved centrally
+ due to the available memory in the computing device.
+ In this paper, we consider a simple but general approach for partitioning
+ the large problem into smaller NLPs by adding consensus constraints.
+ A distributed algorithm is then reached by applying the Alternating Direction
+ Method of Multipliers (ADMM) to solve the partition problems separately
+ and overcome the memory limitations.
+ The distributed approach is demonstrated using a simple case study and
+ compared against the solution obtained by solving the problem centrally.
 \end_layout
 
 \begin_layout Standard
@@ -271,7 +256,7 @@ status collapsed
 
 \end_inset
 
-add three to five keywords here, separated with a comma
+ADMM, thermal energy storage, optimal design
 \begin_inset ERT
 status collapsed
 
@@ -301,50 +286,530 @@ status collapsed
 \end_layout
 
 \begin_layout Section
-Section title
-\end_layout
-
-\begin_layout Standard
-This is a section
-\end_layout
-
-\begin_layout Subsection
-Sub-section
-\end_layout
-
-\begin_layout Standard
-Equations come as normal, the included style file for the left equation
- notation of Elsevier is automatically included.
- So for example 
-\begin_inset Formula 
-\begin{equation}
-A=B+C
-\end{equation}
+Introduction
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:intro"
 
 \end_inset
 
-or an aligned equations 
+
+\end_layout
+
+\begin_layout Standard
+Thermal energy storage (TES) systems help manage the asynchronous behaviour
+ between supply and demand for thermal energy that occur in many industrial
+ processes.
+ They can store excess energy during off-peak periods and discharge it during
+ peak demand, thus reducing the reliance on external utilities and decreasing
+ the operating costs.
+ During design of this dynamic system, profiles for the supply and demand
+ for energy under which the system is expected to operate in the future
+ is uncertain and needs to be accounted for.
+ This uncertainty can be represented by a set of discrete scenarios 
+\begin_inset Formula $\ensuremath{{\cal S}:=\{1,\ldots,S\}}$
+\end_inset
+
+ with the cost weights 
+\begin_inset Formula $w_{s}$
+\end_inset
+
+to represent the likelihood of scenario 
+\shape italic
+s
+\shape default
+ being realized.
+ Stochastic programming approaches can be used to cast the optimal design
+ problem as a two-stage optimization problem where the design variables
+ 
+\begin_inset Formula $\left(w^{des}\right)$
+\end_inset
+
+ are the first stage (here and now) decisions while the operations variables
+ 
+\begin_inset Formula $\left(w^{oper}\right)$
+\end_inset
+
+ are the second stage (wait and see) decisions for each scenario.
+\end_layout
+
+\begin_layout Standard
+Dynamics of the system in each scenario can be discretized into N equally
+ spaced sampling intervals represented by the set 
+\begin_inset Formula $\mathcal{K}=\{0,\ldots,N-1\}$
+\end_inset
+
+ and the optimal design problem cast as a nonlinear programming problem
+ (NLP) in the central form as 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Central Prob"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ can become computationally intractable due to the memory available in the
+ computing device used, when considering many scenarios and longer time
+ horizons.
+ In this paper, we explore the option of dividing this problem into smaller
+ partition problems which can then be solved separately by multiple smaller
+ machines as a way to handle the memory limitations.
+ The partition problems can then be solved iteratively with a coordination
+ step in between to reach a solution to the central problem.
+ 
+\begin_inset Flex Subequations
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "eq:Central Prob"
+
+\end_inset
+
+
 \begin_inset Formula 
 \begin{align}
-\dot{x} & =A\,x+B\,u\\
-y & =C\,x
+\mathop{\min}\limits _{w^{des},w^{oper}}\quad & \phi^{capex}\left(w^{des}\right)+\sum\limits _{s\in{\cal S}}\omega_{s}\left[\sum\limits _{k\in{\cal K}}l\left(x_{k,s},u_{k,s}\right)\right]\\
+s.t\quad & g\left(x_{k,s},u_{k,s},\theta_{k,s},w^{des}\right)\le0 &  & \forall k\in{\cal K},\forall s\in{\cal S}\\
+ & x_{k+1,s}=h\left(x_{k,s},u_{k,s},\theta_{k,s},w^{des}\right) &  & \forall k\in{\cal K},\forall s\in{\cal S}\\
+ & \ensuremath{x_{0,s}=x_{0}} &  & \forall s\in{\cal S}\\
+ & \left(w_{s}^{oper}\right)^{T}:=\left[\left(x_{0,s}\right)^{T},\left(x_{k+1,s}\right)^{T},\left(u_{k,s}\right)^{T}\right] &  & \forall k\in{\cal K},\forall s\in{\cal S}
 \end{align}
 
 \end_inset
 
-But also the starred versions work: 
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Methodology
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Methodology"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Reformulating the design problem as general form consensus optimization
+ problem
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Scenario Tree.pdf
+	display false
+	width 9.1cm
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Illustration of dividing the optimal design problem with 2 scenarios into
+ 6 partitions.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Scenario tree"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+We can divide the two-stage dynamic optimization problem into P partitions
+ denoted by the set 
+\begin_inset Formula $\ensuremath{{\cal P}:=\{1,\ldots,P\}}$
+\end_inset
+
+ in a very flexible manner.
+ An illustration of a design problem with 2 scenarios divided into 6 partitions
+ is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Scenario tree"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ In the partition problems, each partition 
+\shape italic
+p
+\shape default
+ has its own local variables for design 
+\begin_inset Formula $\left(\ensuremath{w_{p}^{des}}\right)$
+\end_inset
+
+ and operations 
+\begin_inset Formula $\left(w_{p}^{oper}\right)$
+\end_inset
+
+.
+ The sum of the individual partition problems together is similar to the
+ central problem in 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Partitioned problems"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ when,
+\end_layout
+
+\begin_layout Itemize
+All the partitions are in consensus of the value of their local design variables
+\end_layout
+
+\begin_layout Itemize
+Adjacent partitions are in consensus of the value of the differential state
+ variable shared between them (at the edge of the partitions)
+\end_layout
+
+\begin_layout Standard
+We can introduce a global copy of all the variables that must reach consensus
+ into a vector 
+\begin_inset Formula $\nu$
+\end_inset
+
+ and the consensus requirements then imposed as an additional constraint
+ in each partition 
+\shape italic
+p
+\shape default
+.
+ We can thus write the optimal design problem as a sum of smaller partition
+ problems that are linked with consensus constraints as, 
+\begin_inset Flex Subequations
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "eq:Partitioned problems"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Formula 
+\begin{align}
+\ensuremath{\mathop{\min}\limits _{w_{p},\nu}\quad} & \sum\limits _{p\in{\cal P}}\Phi_{p}^{capex}\left(w_{p}^{des}\right)+\Phi_{p}^{oper}\left(w_{p}^{oper}\right) &  & \forall p\in{\cal P}\\
+s.t\quad & g_{p}\left(w_{p}^{oper},\theta_{p},w_{p}^{des}\right)\le0 &  & \forall p\in{\cal P}\\
+ & h_{p}\left(w_{p}^{oper},\theta_{p},w_{p}^{des}\right)=0 &  & \forall p\in{\cal P}\\
+ & w_{p}^{des}-\nu^{des}=0 &  & \forall p\in{\cal P}\label{eq:Consensus constr_1}\\
+ & A_{p}w_{p}^{oper}-B_{p}\nu^{oper}=0 &  & \forall p\in{\cal P}\label{eq:Consensus constr 2}\\
+ & w_{p}^{T}=\left[\left(w_{p}^{des}\right)^{T},\left(w_{p}^{oper}\right)^{T}\right] &  & \forall p\in{\cal P}
+\end{align}
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+where 
+\begin_inset Formula $A_{p}$
+\end_inset
+
+ and 
+\begin_inset Formula $B_{p}$
+\end_inset
+
+ are selection matrices used to link a subset of the local variables of
+ partition 
+\shape italic
+p
+\shape default
+ to the corresponding sections in the global copy 
+\begin_inset Formula $\nu$
+\end_inset
+
+.
+ The objective function terms in the partition problems are chosen appropriately
+ to add up to the original objective in 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Central Prob"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsection
+Applying ADMM to get a Distributed algorithm 
+\end_layout
+
+\begin_layout Standard
+Individual partition problems in 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Partitioned problems"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ are not trivially separable due to presence of constraints that enforces
+ the consensus condition.
+ We can solve this problem in a distributed approach using ADMM as described
+ below.
+ The augmented Lagrangian (AL) function of 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Partitioned problems"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ can be formed by taking the constraints 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Consensus constr_1"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:Consensus constr 2"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ to the objective as, 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $L_{\rho}\left(w_{p},\nu,\lambda_{p}\right)=\sum\limits _{p\in{\cal P}}\left[\begin{array}{l}
+\Phi^{capex}\left(w_{p}^{des}\right)+\Phi_{p}^{oper}\left(w_{p}^{oper}\right)\\
++\left(\lambda_{p}^{des}\right)^{T}\left(w_{p}^{des}-\nu^{des}\right)+\left(\lambda_{p}^{oper}\right)^{T}\left(A_{p}w_{p}^{oper}-B_{p}\nu^{oper}\right)\\
++\frac{\rho}{2}\left\Vert w_{p}^{des}-\nu^{des}\right\Vert _{2}^{2}+\frac{\rho}{2}\left\Vert A_{p}w_{p}^{oper}-B_{p}\nu^{oper}\right\Vert _{2}^{2}
+\end{array}\right]$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\lambda_{p}$
+\end_inset
+
+ is the lagrange multipliers associated with the consensus constraints and
+ 
+\begin_inset Formula $\rho$
+\end_inset
+
+ is a vector of chosen penalty parameters.
+ The AL function is additively separable except for the quadratic penalty
+ terms.
+ The ADMM algorithm involves solving the partition problems while keeping
+ 
+\begin_inset Formula $\nu$
+\end_inset
+
+ and 
+\begin_inset Formula $\lambda$
+\end_inset
+
+fixed and then updating them by keeping the local variables 
+\begin_inset Formula $w_{p}$
+\end_inset
+
+ fixed in an alternating fashion until convergence.
+ The 
+\begin_inset Formula $i^{th}$
+\end_inset
+
+ iteration of the ADMM algorithm thus takes the form
+\end_layout
+
+\begin_layout Standard
+\begin_inset Flex Subequations
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula 
+\begin{align}
+ & \ensuremath{\left(w_{p}\right)^{i+1}} &  & \ensuremath{=\mathop{\arg\min}\limits _{w_{p}\in{\cal W}_{p}}{\cal L}_{\rho}\left(w_{p},\nu^{i},\lambda_{p}^{i}\right)} & \forall p\in{\cal P} & \ensuremath{}\label{eq:ADMM iter 1}\\
+ & \ensuremath{\left(\nu\right)^{i+1}} &  & \ensuremath{=\mathop{\arg\min}\limits _{\nu}{\cal L}_{\rho}\left(w_{p}^{i+1},\nu,\lambda_{p}^{i}\right)}\label{eq:ADMM iter 2}\\
+ & \left(\lambda_{p}^{des}\right)^{i+1} &  & \ensuremath{=\left(\lambda_{p}^{des}\right)^{i}+\rho^{des}\left(\left(w_{p}^{des}\right)^{i+1}-\left(\nu^{des}\right)^{i+1}\right)} & \forall p\in{\cal P} & \ensuremath{}\label{eq:ADMM iter 3}\\
+ & \left(\lambda_{p}^{oper}\right)^{i+1} &  & \ensuremath{=\left(\lambda_{p}^{oper}\right)^{i}+\rho^{oper}\left(A_{p}\left(w_{p}^{oper}\right)^{i+1}-B_{p}\left(\nu^{oper}\right)^{i+1}\right)} & \forall p\in{\cal P}\label{eq:ADMM iter 4}
+\end{align}
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Step 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:ADMM iter 1"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ involves solving an optimization problem for each partition separately
+ while the global variable is kept constant.
+ Thus, each partition problem can be solved in separate machines and in
+ parallel.
+ Step 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:ADMM iter 2"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ is the minimization of the AL function while the local variables in partitions
+ are kept constant.
+ This step for consensus optimization problems reduces to finding the minimum
+ of a quadratic function and can be shown to be the averaging operator 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "Rodriguez2018"
+literal "false"
+
+\end_inset
+
+ defined as, 
+\end_layout
+
+\begin_layout Standard
 \begin_inset Formula 
 \[
-A=B+C
+\ensuremath{\nu^{i+1}\left(j\right)=\frac{1}{\left|{\cal P}_{j}\right|}\sum\limits _{p\in{\cal P}}w_{p}^{i+1}\left(j\right)}
 \]
 
 \end_inset
 
-or an aligned equations 
+where 
+\begin_inset Formula $\ensuremath{{\cal P}_{j}\subseteq{\cal P}}$
+\end_inset
+
+ denotes the set of partitions connected to the 
+\begin_inset Formula $j^{th}$
+\end_inset
+
+element of the global variable.
+ Steps 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:ADMM iter 3"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:ADMM iter 4"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ are updates to the lagrange multipliers of consensus constraints and can
+ be carried out in each partition separately.
+ The termination criteria for ADMM iterations are that primal residual 
+\begin_inset Formula $\left(r^{i+1}\right)$
+\end_inset
+
+ and the dual residual 
+\begin_inset Formula $\left(s^{i+1}\right)$
+\end_inset
+
+ be reasonably close to zero as explained in 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "Boyd2010"
+literal "false"
+
+\end_inset
+
+, which for our case is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Flex Subequations
+status open
+
+\begin_layout Plain Layout
 \begin_inset Formula 
 \begin{align*}
-\dot{x} & =A\,x+B\,u\\
-y & =C\,x
+\ensuremath{r_{p}^{i+1}} & \ensuremath{=\left[\begin{array}{l}
+\left(w_{p}^{des}\right)^{i+1}-\left(\nu^{des}\right)^{i+1}\\
+A_{p}\left(w_{p}^{oper}\right)^{i+1}-B_{p}\left(\nu^{oper}\right)^{i+1}
+\end{array}\right]} &  & \ensuremath{\forall p\in{\cal P}}\\
+\ensuremath{s_{p}^{i+1}} & \ensuremath{=\left[\begin{array}{l}
+\left(\lambda_{p}^{des}\right)^{i+1}-\left(\lambda_{p}^{des}\right)^{i}\\
+\left(\lambda_{p}^{oper}\right)^{i+1}-\left(\lambda_{p}^{oper}\right)^{i}
+\end{array}\right]} &  & \forall p\in{\cal P}
 \end{align*}
 
 \end_inset
@@ -352,218 +817,401 @@ y & =C\,x
 
 \end_layout
 
-\begin_layout Standard
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-
-\backslash
-blindtext
-\end_layout
-
 \end_inset
 
 
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-[
 \end_layout
 
-\end_inset
-
-2
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-]
-\end_layout
-
-\end_inset
-
-
+\begin_layout Section
+The TES Design Problem
 \end_layout
 
 \begin_layout Standard
-The subsubsection then appears like:
-\end_layout
-
-\begin_layout Subsubsection
-Subsubsection
-\end_layout
-
-\begin_layout Standard
-This gives all numbered titles.
- 
-\begin_inset CommandInset citation
-LatexCommand citet
-key "Reference2015"
-literal "false"
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Paragraph
-Paragraph
-\end_layout
-
-\begin_layout Standard
-\begin_inset Wrap figure
-lines 0
-placement r
-overhang 0col%
-width "50text%"
-status open
-
-\begin_layout Plain Layout
- 
-\begin_inset Graphics
-	filename F_drop.eps
-	width 50text%
-
-\end_inset
-
- 
-\begin_inset Caption Standard
-
-\begin_layout Plain Layout
-The world in a drop
-\end_layout
-
-\end_inset
-
-
-\begin_inset CommandInset label
-LatexCommand label
-name "Fig:drop"
-
-\end_inset
-
- 
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Figure 
+We use the flowsheet in Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "Fig:drop"
+reference "fig:TES flowsheet"
 plural "false"
 caps "false"
 noprefix "false"
 
 \end_inset
 
- shows the word in a drop –
+ to represent the heating section of a district heating network where water
+ is used in a closed loop to satisfy the heating requirement in an area.
+ Volumetric flowrate of water in the loop 
+\begin_inset Formula $\left(q^{dh}\right)$
+\end_inset
+
+ is determined by the number of consumers and their heating demands at any
+ particular time while the temperature of the water returned 
+\begin_inset Formula $\left(T^{dh,Ret}\right)$
+\end_inset
+
+ is determined by the heat losses in the system and correlated to ambient
+ weather conditions.
+ The operational objective of the heating system is to heat this water up
+ to a temperature 
+\begin_inset Formula $\left(T^{phb}\right)$
+\end_inset
+
+ which must be above a contractually specified temperature 
+\begin_inset Formula $\left(T^{dh,minRet}\right)$
+\end_inset
+
+.
+ A cheap source of heat is available in the form of a process stream from
+ an industrial process which requires to be cooled down below a specified
+ temperature 
+\begin_inset Formula $\left(T^{wh,minRet}\right)$
+\end_inset
+
+.
+ This stream can loose heat to the district heating system using the heat
+ exchanger (WHB).
+ Any additional heating required in the district heating side is satisfied
+ by using the peak heat boiler (PHB).
+ There is a temporal mismatch in the supply of heat from the process stream
+ and the demand for heating.
+ To better manage this mismatch and decrease the reliance on external utilities,
+ a thermal energy storage system in the form of a simple buffer tank is
+ considered to be installed.
+ This simple TES system can charge/ discharge by raising/ lowering the temperatu
+re of the tank by manipulating the flow split 
+\begin_inset Formula $\left(\alpha\right)$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Mass and energy balance equations can be written out for the system to model
+ the dynamics of the system, details of which can be found in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Prakash2020"
+literal "false"
+
+\end_inset
+
+.
+ The differential states are 
+\begin_inset Formula $\ensuremath{x^{T}=\left[T^{whb},T^{wh,\min Ret},T^{tes},T^{phb}\right]}$
+\end_inset
+
+ and the control inputs 
+\begin_inset Formula $\ensuremath{u^{T}=\left[\alpha,Q^{phb},Q^{dc}\right]}$
+\end_inset
+
+.
+ We consider the uncertain parameters at each timestep 
+\begin_inset Formula $k$
+\end_inset
+
+ as 
+\begin_inset Formula $\ensuremath{\theta_{k}^{T}=\left[q_{k}^{dh},T_{k}^{dh,Ret},q^{wh},T^{wh,Sup}\right]}$
+\end_inset
+
+ to build the representative scenarios.
+ The design problem is then to find the optimal volume of the TES tank 
+\begin_inset Formula $\left(V^{tes}\right)$
+\end_inset
+
+ that must be installed, given the uncertain profiles of future supply and
+ demand of thermal energy.
+ 
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Flowsheet_TES.pdf
+	display false
+	width 10cm
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Simplified flowsheet of a district heating system.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:TES flowsheet"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
-Starred section commands
+Results and Discussions
 \end_layout
 
 \begin_layout Standard
-The starred section commands, which do not show numbering, are not available.
+We present a simple simulation study to demonstrate the distributed approach
+ and compare it against solving the design problem as a single NLP centrally.
+ 2 equally likely scenarios with N = 60 discretization is used to represent
+ future operations.
+ The profiles for 
+\begin_inset Formula $q^{wh}$
+\end_inset
+
+ and 
+\begin_inset Formula $T^{wh,Sup}$
+\end_inset
+
+ both have a step change at timesteps 
+\begin_inset Formula $k=20$
+\end_inset
+
+ and 
+\begin_inset Formula $k=40$
+\end_inset
+
+, while all other parameters are held constant.
+ Quadratic functions are used to represent capital cost 
+\begin_inset Formula $\left(\ensuremath{\phi^{capex}=0.001\left(V^{tes}\right)^{2}}\right)$
+\end_inset
+
+ and the operating cost 
+\begin_inset Formula $\left(\ensuremath{l=\left(Q^{phb}\right)^{2}}\right)$
+\end_inset
+
+.
+ The design variables and operations variables were all scaled to be within
+ zero and one while formulating the optimization problem.
+ Scaling facilitated selecting the AL penalty parameter 
+\begin_inset Formula $\rho$
+\end_inset
+
+ to tune the convergence speed in our distributed approach more easily.
+ The penalty parameters used are 
+\begin_inset Formula $\rho^{des}=0.001$
+\end_inset
+
+ and 
+\begin_inset Formula $\rho^{oper}=0.1$
+\end_inset
+
+ to to roughly balance the magnitudes of the objective and penalization
+ terms.
+ 
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Residuals_Plot.svg
+	display false
+	width 4.5cm
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Volume_Plot.svg
+	display false
+	width 4.5cm
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Results from solving the design problem centrally vs distributed approach.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:ADMM Results 1"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+In Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:ADMM Results 1"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, we can see that the primal and dual residuals become sufficiently small
+ in the ADMM algorithm, indicating convergence in our distributed approach.
+ The optimal design variables can be seen to converge to the same solution
+ as found by solving the problem centrally.
+ An important point to note is that this behaviour is not guaranteed by
+ ADMM in the case of nonconvex problems.
+ When applied to nonconvex problems, ADMM need not converge and even when
+ it does converge, it need not converge to an optimal point and must be
+ hence considered just as another local optimization method 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "Boyd2010"
+literal "false"
+
+\end_inset
+
+.
+ Although the convergence guarantees for ADMM in the case of complex nonconvex
+ NLPs are poorly understood, it has been shown to perform satisfactorily
+ in practice 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "Rodriguez2018"
+literal "false"
+
+\end_inset
+
+.
+ Three snapshots of the optimal differential state variable 
+\begin_inset Formula $T^{tes}$
+\end_inset
+
+ in the partitions of scenario 1 are shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:ADMM snapshots"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ 
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Iteration Snapshot 1.svg
+	display false
+	width 4.1cm
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Iteration Snapshot 10.svg
+	display false
+	width 4.1cm
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Iteration Snapshot 100.svg
+	display false
+	width 4.1cm
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Snapshots at ADMM iterations (i = 1,10, 100) in the partition problems.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:ADMM snapshots"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+An interesting observation in our approach is that all partitions apart
+ from the leftmost partition has the initial condition of the dynamic optimizati
+on problem as a variable.
+ Thus in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:ADMM snapshots"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, we can see that during the initial iterations (left subplot), the optimal
+ solution is to initialize the TES tank at a high temperature.
+ The penalization terms added are then updated to close the gap between
+ the partitions and achieve consensus (middle and right subplots).
+ In this aspect our approach shares similarities to multiple shooting (MS)
+ approach in dynamic optimization.
+ The key difference is that MS is solved centrally and the state continuity
+ (consensus constraint) is enforced explicitly as an equality constraint
+ by the solver.
+ In ADMM, we solve it in a distributed way where the consensus constraint
+ is relaxed by forming the AL.
+ It is then enforced implicitly by minimizing the AL.
 \end_layout
 
 \begin_layout Section
-More
+Conclusion
 \end_layout
 
 \begin_layout Standard
+In this paper, we presented the optimal design of a simple TES system under
+ uncertainty as a two-stage nonlinear dynamic optimization problem.
+ Due to limitations in memory of solving the problem centrally in a single
+ machine, an approach for forming smaller partition problems in a general
+ fashion was shown.
+ The ADMM algorithm was applied to coordinate between the subproblems which
+ could be solved separately and in parallel.
+ A simple simulation exercise was used to demonstrate the approach.
+ 
 \begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-
-\backslash
-blindtext
-\end_layout
-
-\end_inset
-
-
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-[
-\end_layout
-
-\end_inset
-
-2
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-]
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Section
-Much more
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-
-\backslash
-blindtext
-\end_layout
-
-\end_inset
-
-
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-[
-\end_layout
-
-\end_inset
-
-3
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-]
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
@@ -579,7 +1227,7 @@ status collapsed
 
 
 \begin_inset ERT
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
@@ -609,11 +1257,12 @@ bibsep
 =0pt 
 \begin_inset CommandInset bibtex
 LatexCommand bibtex
+btprint "btPrintCited"
 bibfiles "example"
 
 \end_inset
 
- 
+
 \size default
  
 \end_layout

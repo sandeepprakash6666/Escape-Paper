@@ -1,0 +1,605 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\begin_preamble
+% ==============================================================================================
+% 2010-11-05 Preisig, H A       ; NTNU
+% 2011-12-15  ditto             ; adapted for PSE 11
+%                               ; put all the heading info into the style file
+% 2012-01-04  ditto             ; Reference section title fixed -- integrated into style file
+%                               ; changed sequence: first bibliography then pse style
+%                               ;  pse style redefines reference listing superseding natlib def
+%                               ;  and simplified by moving reference style loading into pse.sty
+% 2014-09-04  ditto             ; reverted to standard LaTeX fonts
+%                               ; issues - measures do not correspond with manual. 
+%                               ; There is a cm missing 13.5 textwidth gives 12.5 texwidth ???
+% 2015-10-14 Zinser, A          ; adapted to ESCAPE 26
+% 2017-11-11 Radl, S            ; adapted to ESCAPE 28
+% 2018-10-10 Kiss, A. A.        ; adapted to ESCAPE 29
+% 2020-06-25 TÃrkay, M.         ; adapted to ESCAPE 31
+% ==============================================================================================
+
+
+
+%% bibliography must be before escape styles
+
+
+%% Escape/PSE styles
+\usepackage{left_eq} % To get the equation left aligned, this is ugly but required :-)
+\usepackage{escape31}% Stylefile from Escape
+
+
+%%% >>>>>>>>>>>>>>> use your own GRAPHICS configuration <<<<<<<<<<<<<<<<<<<<<<<
+% \usepackage{pstricks}\usepackage{pst-plot}% pstricks
+% enables import of various formats
+% enables floating wrapped figures
+\usepackage[figuresright]{rotating}
+
+
+
+%% math packages
+\usepackage{amsmath}
+
+%% >>>>>>>>>>>>>>>> user definitions BIBLIOGRAPHY & DEFS <<<<<<<<<<<<<<<<<<<<<<<<
+
+
+%% personal styles and definitions
+%\usepackage{mystyle}
+%\def\mydefs{defs}
+\usepackage[english]{babel}
+\usepackage{blindtext}
+\bibliographystyle{elsart-harv}
+
+
+% ================================================================================
+\title{Multi-scenario Design Optimization using ADMM of a Thermal Energy Storage System}
+%
+ \author[a]{Sandeep Prakash}
+ \author[a]{Dinesh Krishnamoorthy }
+ \author[a,*]{Johannes Jäschke}
+ \affil[a]{Norwegian University of Science and Technology, Trondheim 7491, Norway}
+ \email{johannes.jaschke@ntnu.no}
+ 
+ \HeaderTitle{Multi-scenario Design Optimization using ADMM of a Thermal Energy Storage System}
+ \HeaderAuthor{S. Prakash et al.}
+
+% ==================================== title ====================================
+\end_preamble
+\use_default_options false
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding default
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 10
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 2
+\use_package amssymb 2
+\use_package cancel 0
+\use_package esint 1
+\use_package mathdots 0
+\use_package mathtools 0
+\use_package mhchem 0
+\use_package stackrel 0
+\use_package stmaryrd 0
+\use_package undertilde 0
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style elsart-harv
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 1
+\math_indentation default
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 2
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+maketitle
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+% make title page with abstract and keywords
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+thispagestyle{empty}
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+% first page has a different format
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+% ==============================================================================
+==
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+Using nonlinear models to represent multi-scenario design optimization problems
+ can lead to very large NLPs that can become intractable to be solved centrally
+ due to the available memory in the computing device.
+ In this paper, we consider a simple but general approach for partitioning
+ the large problem into smaller NLPs by adding consensus constraints.
+ A distributed algorithm is then reached by applying the Alternating Direction
+ Method of Multipliers (ADMM) to solve the partition problems separately
+ and overcome the memory limitations.
+ The distributed approach is demonstrated using a simple case study and
+ compared against the solution obtained by solving the problem centrally.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+Keywords
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+{
+\end_layout
+
+\end_inset
+
+ADMM, thermal energy storage, optimal design
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+% ==================================== body  ===================================
+==
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Thermal energy storage (TES) systems help manage the asynchronous behaviour
+ between supply and demand for thermal energy that occur in many industrial
+ processes.
+ They can store excess energy during off-peak periods and discharge it during
+ peak demand, thus reducing the reliance on external utilities and decreasing
+ the operating costs.
+ During design of this dynamic system, profiles for the supply and demand
+ for energy under which the system is expected to operate in the future
+ is uncertain and needs to be accounted for.
+ This uncertainty can be represented by a set of discrete scenarios 
+\begin_inset Formula $\ensuremath{{\cal S}:=\{1,\ldots,S\}}$
+\end_inset
+
+ with the cost weights 
+\begin_inset Formula $w_{s}$
+\end_inset
+
+to represent the likelihood of scenario 
+\shape italic
+s
+\shape default
+ being realized.
+ Stochastic programming approaches can be used to cast the optimal design
+ problem as a two-stage optimization problem where the design variables
+ (
+\begin_inset Formula $w^{des}$
+\end_inset
+
+) are the first stage (here and now) decisions while the operations variables
+ (
+\begin_inset Formula $w^{oper}$
+\end_inset
+
+) are the second stage (wait and see) decisions for each scenario.
+\end_layout
+
+\begin_layout Standard
+Dynamics of the system in each scenario can be discretized into N equally
+ spaced sampling intervals represented by the set 
+\begin_inset Formula $\mathcal{K}=\{0,...,N-1\}$
+\end_inset
+
+ and the optimal design problem cast as a nonlinear programming problem
+ (NLP) in the central form as 
+\end_layout
+
+\begin_layout Subsection
+Sub-section
+\end_layout
+
+\begin_layout Standard
+Equations come as normal, the included style file for the left equation
+ notation of Elsevier is automatically included.
+ So for example 
+\begin_inset Formula 
+\begin{equation}
+A=B+C
+\end{equation}
+
+\end_inset
+
+or an aligned equations 
+\begin_inset Formula 
+\begin{align}
+\dot{x} & =A\,x+B\,u\\
+y & =C\,x
+\end{align}
+
+\end_inset
+
+But also the starred versions work: 
+\begin_inset Formula 
+\[
+A=B+C
+\]
+
+\end_inset
+
+or an aligned equations 
+\begin_inset Formula 
+\begin{align*}
+\dot{x} & =A\,x+B\,u\\
+y & =C\,x
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The subsubsection then appears like:
+\end_layout
+
+\begin_layout Subsubsection
+Subsubsection
+\end_layout
+
+\begin_layout Standard
+This gives all numbered titles.
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Reference2015"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Paragraph
+\end_layout
+
+\begin_layout Standard
+\begin_inset Wrap figure
+lines 0
+placement o
+overhang 0in
+width "50text%"
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/sandeepp/NTNU/o365_Sandeep's_teams - General/PhD sem 1/Escape Paper/Admin/Paper support files/Scenario Tree.png
+	display false
+	width 50mm
+
+\end_inset
+
+ 
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The world in a drop
+\end_layout
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "Fig:drop"
+
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Fig:drop"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows the word in a drop –
+\end_layout
+
+\begin_layout Section
+Starred section commands
+\end_layout
+
+\begin_layout Standard
+The starred section commands, which do not show numbering, are not available.
+\end_layout
+
+\begin_layout Section
+More
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+blindtext
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+[
+\end_layout
+
+\end_inset
+
+2
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Much more
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+blindtext
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+[
+\end_layout
+
+\end_inset
+
+3
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+% ================================ references ==================================
+=
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+%% References 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\size small
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+bibsep
+\end_layout
+
+\end_inset
+
+=0pt 
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+bibfiles "example"
+
+\end_inset
+
+ 
+\size default
+ 
+\end_layout
+
+\end_body
+\end_document
